@@ -5,7 +5,7 @@ declare global {
 import { app, BrowserWindow, globalShortcut } from 'electron'
 import createTray from './tray'
 import { createMainWindow } from './mainWindow' // Import the createMainWindow function
-import { createSatellite } from './satelliteFunctions' // Import createSatellite and closeSatellite functions
+import { createSatellite, closeSatellite } from './satelliteFunctions' // Import createSatellite and closeSatellite functions
 import { showNotification } from './notification'
 import { initializeIpcHandlers } from './ipcHandlers' // Import IPC handlers if needed
 
@@ -26,8 +26,8 @@ app.on('ready', () => {
     }, 800)
 
     app.on('will-quit', () => {
-        // Unregister all shortcuts when the app is about to quit
-        globalShortcut.unregisterAll()
+		// Close the satellite connection when the app is quitting
+		closeSatellite()
     })
 })
 

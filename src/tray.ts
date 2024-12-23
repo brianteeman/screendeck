@@ -27,17 +27,17 @@ function updateTrayMenu() {
 
     // Build context menu with version, IP, and Device ID
     let contextMenuTemplate = [
-        { label: `ScreenDeck Version: ${version}`, enabled: false },
-        { label: `Companion IP: ${companionIP}`, enabled: false },
+        { label: `ScreenDeck Version: ${version || ''}`, enabled: false },
+        { label: `Companion IP: ${companionIP || ''}`, enabled: false },
         {
-            label: `Companion Version: ${global.satellite?.companionVersion}`,
+            label: `Companion Version: ${global.satellite?.companionVersion || 'Unknown'}`,
             enabled: false,
         },
         {
-            label: `Satellite API Version: ${global.satellite?.apiVersion}`,
+            label: `Satellite API Version: ${global.satellite?.apiVersion || 'Unknown'}`,
             enabled: false,
         },
-        { label: `Device ID: ${deviceId}`, enabled: false },
+        { label: `Device ID: ${deviceId || ''}`, enabled: false },
         { type: 'separator' },
         {
             label: 'Settings',

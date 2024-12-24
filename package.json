@@ -47,7 +47,7 @@
         },
         "win": {
             "target": "nsis",
-            "icon": "assets/tray-icon.png"
+            "icon": "assets/tray-icon.ico"
         },
         "linux": {
             "target": "AppImage",

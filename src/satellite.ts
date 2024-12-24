@@ -184,7 +184,7 @@ export class Satellite extends EventEmitter {
     private startPing() {
         this.ping_interval = setInterval(() => {
             this.sendCommand('PING')
-        }, 2000) // 2 seconds, as recommened per the protocol
+        }, 2000) // 2 seconds, as recommended per the protocol
     }
 
     private sendCommand(cmd: string) {

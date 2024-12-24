@@ -37,9 +37,6 @@
                 "NSApplicationSupportsSecureRestorableState": true,
                 "electronTeamId": "R2PY2DC3A4"
             },
-            "notarize": {
-                "teamId": "R2PY2DC3A4"
-            },
             "hardenedRuntime": true,
             "gatekeeperAssess": true,
             "entitlements": "entitlements.mac.plist",

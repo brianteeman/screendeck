@@ -32,14 +32,14 @@
             ],
             "category": "public.app-category.utilities",
             "icon": "assets/tray-icon.png",
-			"identity": "Joseph Adams (R2PY2DC3A4)",
+            "identity": "Joseph Adams (R2PY2DC3A4)",
             "extendInfo": {
                 "NSApplicationSupportsSecureRestorableState": true,
-				"electronTeamId": "R2PY2DC3A4"
+                "electronTeamId": "R2PY2DC3A4"
             },
-			"notarize": {
-				"teamId": "R2PY2DC3A4"
-			},
+            "notarize": {
+                "teamId": "R2PY2DC3A4"
+            },
             "hardenedRuntime": true,
             "gatekeeperAssess": true,
             "entitlements": "entitlements.mac.plist",
@@ -60,11 +60,11 @@
         "short-uuid": "^5.2.0"
     },
     "devDependencies": {
+        "@electron/notarize": "^2.5.0",
         "@types/node": "^18.0.0",
         "concurrently": "^8.0.0",
-        "electron": "^25.0.0",
-        "electron-builder": "^24.0.0",
-        "electron-notarize": "^1.2.2",
+        "electron": "^33.2.1",
+        "electron-builder": "^25.1.8",
         "prettier": "^3.3.3",
         "ts-node": "^10.0.0",
         "typescript": "^5.0.0",

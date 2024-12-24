@@ -93,8 +93,12 @@ export class Satellite extends EventEmitter {
 
         this.socket.on('error', (error) => {
             this.emit('error', error)
-            //this.disconnect();
         })
+
+		this.socket.on('close', () => {
+			this.isConnected = false
+			this.emit('disconnected')
+		})
     }
 
     public disconnect() {
@@ -109,8 +113,6 @@ export class Satellite extends EventEmitter {
             this.socket.destroy()
             this.socket = null
         }
-
-        this.emit('disconnected')
     }
 
     public changeKeys(

@@ -38,6 +38,7 @@ function updateTrayMenu() {
             enabled: false,
         },
         { label: `Device ID: ${deviceId || ''}`, enabled: false },
+		{ label: `Connected: ${global.satellite?.isConnected ? 'Yes' : 'No'}`, enabled: false },
         { type: 'separator' },
         {
             label: 'Settings',

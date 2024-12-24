@@ -48,7 +48,7 @@ jobs:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   release: true
               env:
+                DEBUG: electron-notarize
                 APPLE_ID: ${{ secrets.APPLE_ID }}
-                APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
                 APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
                 CSC_NAME: ${{ secrets.CSC_NAME }}

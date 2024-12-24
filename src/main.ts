@@ -21,14 +21,22 @@ app.on('ready', () => {
     initializeIpcHandlers()
 
     //wait 500ms before connecting to the satellite
-    setTimeout(() => {
+	clearInterval(global.satelliteTimeout)
+    global.satelliteTimeout = setTimeout(() => {
         createSatellite(true)
     }, 800)
 
-    app.on('will-quit', () => {
-		// Close the satellite connection when the app is quitting
-		closeSatellite()
-    })
+	let quitTimeout: NodeJS.Timeout;
+
+	app.on('before-quit', (event) => {
+		//event.preventDefault();
+		closeSatellite(); // Close the satellite connection when the app is quitting
+		quitTimeout = setTimeout(() => {
+			app.exit(0);
+		}, 1000);
+	});
+
+	app.on('quit', () => clearTimeout(quitTimeout)); // Cleanup timeout on quit
 })
 
 app.on('window-all-closed', () => {

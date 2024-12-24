@@ -38,7 +38,10 @@ function updateTrayMenu() {
             enabled: false,
         },
         { label: `Device ID: ${deviceId || ''}`, enabled: false },
-		{ label: `Connected: ${global.satellite?.isConnected ? 'Yes' : 'No'}`, enabled: false },
+        {
+            label: `Connected: ${global.satellite?.isConnected ? 'Yes' : 'No'}`,
+            enabled: false,
+        },
         { type: 'separator' },
         {
             label: 'Settings',
@@ -71,19 +74,19 @@ function updateTrayMenu() {
         })
     }
 
-	// Add "Stop Trying to Reconnect" option if we are not connected and the satellite is trying to reconnect (global.satelliteTimeout is set)
-	if (!global.satellite?.isConnected && global.satelliteTimeout) {
-		contextMenuTemplate.splice(5, 0, {
-			label: 'Stop Trying to Connect',
-			type: 'normal',
-			click: () => {
-				clearInterval(global.satelliteTimeout)
-				global.satelliteTimeout = undefined
-				//remove this option from the menu
-				updateTrayMenu()
-			}
-		})
-	}
+    // Add "Stop Trying to Reconnect" option if we are not connected and the satellite is trying to reconnect (global.satelliteTimeout is set)
+    if (!global.satellite?.isConnected && global.satelliteTimeout) {
+        contextMenuTemplate.splice(5, 0, {
+            label: 'Stop Trying to Connect',
+            type: 'normal',
+            click: () => {
+                clearInterval(global.satelliteTimeout)
+                global.satelliteTimeout = undefined
+                //remove this option from the menu
+                updateTrayMenu()
+            },
+        })
+    }
 
     const contextMenu = Menu.buildFromTemplate(contextMenuTemplate)
 

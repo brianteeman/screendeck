@@ -117,9 +117,9 @@ window.electronAPI.getSettings().then((settings) => {
 
 // Function to adjust the brightness of all keys
 function adjustBrightness(brightness) {
-	// Adjust the opacity of the entire keypad
-	const keypad = document.getElementById('keypad')
-	keypad.style.opacity = brightness / 100
+    // Adjust the opacity of the entire keypad
+    const keypad = document.getElementById('keypad')
+    keypad.style.opacity = brightness / 100
 }
 
 // Function to render 8-bit RGB bitmap data on a canvas

@@ -78,22 +78,22 @@ export function createSatellite(notificationShow: boolean = true) {
         )*/
         global.mainWindow?.hide() //hide the main window when satellite is disconnected
 
-		//wait 50ms and update tray menu
-		setTimeout(() => {
-			updateTrayMenu()
-		}, 50)
+        //wait 50ms and update tray menu
+        setTimeout(() => {
+            updateTrayMenu()
+        }, 50)
 
-		//wait 10s before trying to reconnect
-		clearInterval(global.satelliteTimeout)
-    	global.satelliteTimeout = setTimeout(() => {
-			createSatellite(false)
-		}, 10000)
+        //wait 10s before trying to reconnect
+        clearInterval(global.satelliteTimeout)
+        global.satelliteTimeout = setTimeout(() => {
+            createSatellite(false)
+        }, 10000)
     })
 
     //on error
     global.satellite.on('error', (error) => {
         // Check the error code and send a user-friendly message to the renderer
-		console.log('Satellite Error:', error)
+        console.log('Satellite Error:', error)
 
         if (error.code === 'ECONNREFUSED') {
             showNotification(
@@ -101,34 +101,31 @@ export function createSatellite(notificationShow: boolean = true) {
                 `Unable to connect to ${error.address}:${error.port}. Please check the IP address and try again.`
             )
 
-			//wait 50ms and update tray menu
-			setTimeout(() => {
-				updateTrayMenu()
-			}, 50)
-        }
-		else if (error.code === 'ECONNRESET') {
-			showNotification(
-				'Companion Satellite Connection Lost',
-				`Connection to Companion lost. Trying to reconnect in 10 seconds...`
-			)
+            //wait 50ms and update tray menu
+            setTimeout(() => {
+                updateTrayMenu()
+            }, 50)
+        } else if (error.code === 'ECONNRESET') {
+            showNotification(
+                'Companion Satellite Connection Lost',
+                `Connection to Companion lost. Trying to reconnect in 10 seconds...`
+            )
 
-			//wait 50ms and update tray menu
-			setTimeout(() => {
-				updateTrayMenu()
-			}, 50)
-		}
-		else if (error.code === 'ETIMEDOUT') {
-			showNotification(
-				'Companion Satellite Connection Timed Out',
-				`Connection to Companion timed out. Trying to reconnect in 10 seconds...`
-			)
+            //wait 50ms and update tray menu
+            setTimeout(() => {
+                updateTrayMenu()
+            }, 50)
+        } else if (error.code === 'ETIMEDOUT') {
+            showNotification(
+                'Companion Satellite Connection Timed Out',
+                `Connection to Companion timed out. Trying to reconnect in 10 seconds...`
+            )
 
-			//wait 50ms and update tray menu
-			setTimeout(() => {
-				updateTrayMenu()
-			}, 50)
-		}
-		else {
+            //wait 50ms and update tray menu
+            setTimeout(() => {
+                updateTrayMenu()
+            }, 50)
+        } else {
             showNotification(
                 'Connection Error',
                 `An unexpected error occurred: ${error.message}`

@@ -24,19 +24,17 @@ export function initializeIpcHandlers() {
         if (currentIP !== companionIP) {
             // If the IP address has changed
             closeSatellite()
-			clearInterval(global.satelliteTimeout)
+            clearInterval(global.satelliteTimeout)
             global.satelliteTimeout = setTimeout(() => {
                 createSatellite(false)
             }, 800)
-        }
-		else if (!global.satellite?.isConnected) {
-			// If we are not connected
-			clearInterval(global.satelliteTimeout)
+        } else if (!global.satellite?.isConnected) {
+            // If we are not connected
+            clearInterval(global.satelliteTimeout)
             global.satelliteTimeout = setTimeout(() => {
-				createSatellite(false)
-			}, 800)
-		}
-		else {
+                createSatellite(false)
+            }, 800)
+        } else {
             //wait 800ms before connecting to the satellite
             setTimeout(() => {
                 global.satellite?.removeDevice()

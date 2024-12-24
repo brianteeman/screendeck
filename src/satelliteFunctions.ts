@@ -1,5 +1,6 @@
 declare global {
     var satellite: Satellite | null
+    var satelliteTimeout: NodeJS.Timeout | undefined
 }
 
 import ShortUniqueId from 'short-uuid'
@@ -49,11 +50,12 @@ export function createSatellite(notificationShow: boolean = true) {
         if (notificationShow) {
             showNotification(
                 'Satellite Connected',
-                `Connected to Companion IP: ${companionIP}`
+                `Connected to Companion: ${companionIP}`
             )
         }
         global.mainWindow?.show() //show the window when satellite is connected
         //wait 50ms and update tray menu
+
         setTimeout(() => {
             updateTrayMenu()
         }, 50)
@@ -70,22 +72,63 @@ export function createSatellite(notificationShow: boolean = true) {
     })
 
     global.satellite.on('disconnected', () => {
-        showNotification(
+        /*showNotification(
             'Satellite Disconnected',
             `Disconnected from Companion IP: ${companionIP}`
-        )
+        )*/
         global.mainWindow?.hide() //hide the main window when satellite is disconnected
+
+		//wait 50ms and update tray menu
+		setTimeout(() => {
+			updateTrayMenu()
+		}, 50)
+
+		//wait 10s before trying to reconnect
+		clearInterval(global.satelliteTimeout)
+    	global.satelliteTimeout = setTimeout(() => {
+			createSatellite(false)
+		}, 10000)
     })
 
     //on error
     global.satellite.on('error', (error) => {
         // Check the error code and send a user-friendly message to the renderer
-        if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+		console.log('Satellite Error:', error)
+
+        if (error.code === 'ECONNREFUSED') {
             showNotification(
                 'Connection Error',
-                `Connection error: Unable to connect to ${error.address}:${error.port}. Please check the IP address and try again.`
+                `Unable to connect to ${error.address}:${error.port}. Please check the IP address and try again.`
             )
-        } else {
+
+			//wait 50ms and update tray menu
+			setTimeout(() => {
+				updateTrayMenu()
+			}, 50)
+        }
+		else if (error.code === 'ECONNRESET') {
+			showNotification(
+				'Companion Satellite Connection Lost',
+				`Connection to Companion lost. Trying to reconnect in 10 seconds...`
+			)
+
+			//wait 50ms and update tray menu
+			setTimeout(() => {
+				updateTrayMenu()
+			}, 50)
+		}
+		else if (error.code === 'ETIMEDOUT') {
+			showNotification(
+				'Companion Satellite Connection Timed Out',
+				`Connection to Companion timed out. Trying to reconnect in 10 seconds...`
+			)
+
+			//wait 50ms and update tray menu
+			setTimeout(() => {
+				updateTrayMenu()
+			}, 50)
+		}
+		else {
             showNotification(
                 'Connection Error',
                 `An unexpected error occurred: ${error.message}`

@@ -97,6 +97,10 @@ export class Satellite extends EventEmitter {
 
 		this.socket.on('close', () => {
 			this.isConnected = false
+
+			this.companionVersion = ''
+        	this.apiVersion = ''
+
 			this.emit('disconnected')
 		})
     }

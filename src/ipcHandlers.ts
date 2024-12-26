@@ -39,7 +39,6 @@ export function initializeIpcHandlers() {
             setTimeout(() => {
                 global.satellite?.removeDevice()
                 global.satellite?.changeKeys(keysTotal, keysPerRow, bitmapSize)
-                global.satellite?.addDevice()
             }, 800)
         }
     })

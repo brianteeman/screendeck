@@ -62,7 +62,7 @@ function updateTrayMenu() {
 
     // Add "Show Keypad" option if alwaysOnTop is false, or if the main window is not visible, but only if we are connected to Companion
     if (
-        (!alwaysOnTop || global.mainWindow?.isVisible() === false) &&
+        (!global.mainWindow?.isAlwaysOnTop() && !global.mainWindow?.isVisible()) &&
         global.satellite?.isConnected
     ) {
         contextMenuTemplate.splice(5, 0, {

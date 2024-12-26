@@ -61,6 +61,7 @@ export function createMainWindow() {
         if (!alwaysOnTop) {
             global.mainWindow?.hide()
         }
+		updateTrayMenu() // Update tray menu when the window is hidden
     })
 
     global.mainWindow.on('close', (event) => {

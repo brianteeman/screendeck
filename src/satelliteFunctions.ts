@@ -54,6 +54,7 @@ export function createSatellite(notificationShow: boolean = true) {
             )
         }
         global.mainWindow?.show() //show the window when satellite is connected
+		global.mainWindow?.focus() //focus the window when satellite is connected (bring to top)
         //wait 50ms and update tray menu
 
         setTimeout(() => {

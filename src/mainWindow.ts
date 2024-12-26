@@ -64,6 +64,14 @@ export function createMainWindow() {
 		updateTrayMenu() // Update tray menu when the window is hidden
     })
 
+	global.mainWindow.on('focus', () => {
+		updateTrayMenu() // Update tray menu when the window is focused
+	})
+
+	global.mainWindow.on('hide', () => {
+		updateTrayMenu() // Update tray menu when the window is hidden
+	})
+
     global.mainWindow.on('close', (event) => {
         event.preventDefault()
         global.mainWindow?.hide()

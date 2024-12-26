@@ -47,7 +47,9 @@ export function initializeIpcHandlers() {
     ipcMain.handle('keyDown', (_, keyObj) => {
         if (satellite && typeof satellite.sendKeyDown === 'function') {
             let keyNumber: number = parseInt(keyObj.key) - 1
-            satellite.sendKeyDown(keyNumber) // Call keyDown method on the Satellite instance
+			if (store.get('disablePress', false) == false) { //only send keyDown if button presses are allowed
+            	satellite.sendKeyDown(keyNumber) // Call keyDown method on the Satellite instance
+			}
         }
     })
 
@@ -55,7 +57,9 @@ export function initializeIpcHandlers() {
     ipcMain.handle('keyUp', (_, keyObj) => {
         if (satellite && typeof satellite.sendKeyUp === 'function') {
             let keyNumber: number = parseInt(keyObj.key) - 1
-            satellite.sendKeyUp(keyNumber)
+			if (store.get('disablePress', false) == false) { //only send keyUp if button presses are allowed
+				satellite.sendKeyUp(keyNumber) // Call keyUp method on the Satellite instance
+			}
         }
     })
 
@@ -64,7 +68,9 @@ export function initializeIpcHandlers() {
         if (satellite && typeof satellite.sendKeyRotate === 'function') {
             let keyNumber: number = parseInt(keyObj.key) - 1
             let direction: number = parseInt(keyObj.direction)
-            satellite.sendKeyRotate(keyNumber, direction)
+			if (store.get('disablePress', false) == false) { //only send keyRotate if button presses are allowed
+				satellite.sendKeyRotate(keyNumber, direction) // Call keyRotate method on the Satellite instance
+			}
         }
     })
 

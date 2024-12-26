@@ -8,6 +8,7 @@ export const defaultSettings = {
     bitmapSize: 72, // Default bitmap size
     alwaysOnTop: true, // Default always on top setting
     movable: false, // Default setting for whether the window is movable
+	disablePress: false, // Default setting for whether button presses are allowed or not
 }
 
 export type SettingsType = typeof defaultSettings

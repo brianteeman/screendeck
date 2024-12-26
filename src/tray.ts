@@ -23,7 +23,6 @@ function updateTrayMenu() {
     const companionIP = store.get('companionIP', '127.0.0.1') as string
     const deviceId = store.get('deviceId', 'Unknown') as string
     const version = app.getVersion()
-    const alwaysOnTop = store.get('alwaysOnTop', true)
 
     // Build context menu with version, IP, and Device ID
     let contextMenuTemplate = [
@@ -43,6 +42,15 @@ function updateTrayMenu() {
             enabled: false,
         },
         { type: 'separator' },
+		//disable press checkbox
+		{
+			label: 'Disable Button Presses',
+			type: 'checkbox',
+			checked: store.get('disablePress', false),
+			click: () => {
+				store.set('disablePress', !store.get('disablePress', false))
+			},
+		},
         {
             label: 'Settings',
             type: 'normal',

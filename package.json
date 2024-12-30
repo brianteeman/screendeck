@@ -1,6 +1,6 @@
 {
     "name": "screendeck",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "author": "Joseph Adams <joseph@josephadams.dev>",
     "description": "ScreenDeck is a virtual on-screen stream deck for Bitfocus Companion, built with Electron and TypeScript. This application allows you to create a customizable keypad interface that can send button presses to Companion, enabling you to control various applications, and perform automated tasks, all from an easily accessible on-screen interface.",
     "main": "dist/main.js",

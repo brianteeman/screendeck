@@ -4,6 +4,8 @@
 
 ScreenDeck is a virtual on-screen stream deck for Bitfocus Companion, built with Electron and TypeScript. This application allows you to create a customizable keypad interface that can send button presses to Companion, enabling you to control various applications, and perform automated tasks, all from an easily accessible on-screen interface.
 
+[![Watch the demo on YouTube](https://img.youtube.com/vi/QIi7PxsPd34/0.jpg)](https://youtu.be/QIi7PxsPd34)
+
 ## Features
 
 - **Customizable Keypad Layout**: Configure the total number of buttons and number per row.

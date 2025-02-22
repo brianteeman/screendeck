@@ -11,6 +11,11 @@ declare global {
 }
 
 export function createMainWindow() {
+    if (!app.isReady()) {
+        console.error('App is not ready. Cannot create main window.')
+        return
+    }
+    
     const alwaysOnTop = store.get('alwaysOnTop', true)
     const keysTotal = store.get('keysTotal', 6)
     const keysPerRow = store.get('keysPerRow', 1)

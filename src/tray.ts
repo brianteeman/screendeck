@@ -14,6 +14,11 @@ export default function createTray() {
     tray = new Tray(image.resize({ width: 16, height: 16 }))
 
     tray.setToolTip('ScreenDeck')
+
+    tray.on('click', () => {
+        showMainWindow()
+    })
+
     updateTrayMenu()
 }
 
@@ -42,15 +47,15 @@ function updateTrayMenu() {
             enabled: false,
         },
         { type: 'separator' },
-		//disable press checkbox
-		{
-			label: 'Disable Button Presses',
-			type: 'checkbox',
-			checked: store.get('disablePress', false),
-			click: () => {
-				store.set('disablePress', !store.get('disablePress', false))
-			},
-		},
+        //disable press checkbox
+        {
+            label: 'Disable Button Presses',
+            type: 'checkbox',
+            checked: store.get('disablePress', false),
+            click: () => {
+                store.set('disablePress', !store.get('disablePress', false))
+            },
+        },
         {
             label: 'Settings',
             type: 'normal',
@@ -69,10 +74,7 @@ function updateTrayMenu() {
     ] as Electron.MenuItemConstructorOptions[]
 
     // Add "Show Keypad" option if alwaysOnTop is false, or if the main window is not visible, but only if we are connected to Companion
-    if (
-        !global.mainWindow?.isVisible() &&
-        global.satellite?.isConnected
-    ) {
+    if (!global.mainWindow?.isVisible() && global.satellite?.isConnected) {
         contextMenuTemplate.splice(5, 0, {
             label: 'Show Keypad',
             type: 'normal',

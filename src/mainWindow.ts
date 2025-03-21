@@ -15,7 +15,7 @@ export function createMainWindow() {
         console.error('App is not ready. Cannot create main window.')
         return
     }
-    
+
     const alwaysOnTop = store.get('alwaysOnTop', true)
     const keysTotal = store.get('keysTotal', 6)
     const keysPerRow = store.get('keysPerRow', 1)
@@ -66,16 +66,16 @@ export function createMainWindow() {
         if (!alwaysOnTop) {
             global.mainWindow?.hide()
         }
-		updateTrayMenu() // Update tray menu when the window is hidden
+        updateTrayMenu() // Update tray menu when the window is hidden
     })
 
-	global.mainWindow.on('focus', () => {
-		updateTrayMenu() // Update tray menu when the window is focused
-	})
+    global.mainWindow.on('focus', () => {
+        updateTrayMenu() // Update tray menu when the window is focused
+    })
 
-	global.mainWindow.on('hide', () => {
-		updateTrayMenu() // Update tray menu when the window is hidden
-	})
+    global.mainWindow.on('hide', () => {
+        updateTrayMenu() // Update tray menu when the window is hidden
+    })
 
     global.mainWindow.on('close', (event) => {
         event.preventDefault()

@@ -47,9 +47,10 @@ export function initializeIpcHandlers() {
     ipcMain.handle('keyDown', (_, keyObj) => {
         if (satellite && typeof satellite.sendKeyDown === 'function') {
             let keyNumber: number = parseInt(keyObj.key) - 1
-			if (store.get('disablePress', false) == false) { //only send keyDown if button presses are allowed
-            	satellite.sendKeyDown(keyNumber) // Call keyDown method on the Satellite instance
-			}
+            if (store.get('disablePress', false) == false) {
+                //only send keyDown if button presses are allowed
+                satellite.sendKeyDown(keyNumber) // Call keyDown method on the Satellite instance
+            }
         }
     })
 
@@ -57,9 +58,10 @@ export function initializeIpcHandlers() {
     ipcMain.handle('keyUp', (_, keyObj) => {
         if (satellite && typeof satellite.sendKeyUp === 'function') {
             let keyNumber: number = parseInt(keyObj.key) - 1
-			if (store.get('disablePress', false) == false) { //only send keyUp if button presses are allowed
-				satellite.sendKeyUp(keyNumber) // Call keyUp method on the Satellite instance
-			}
+            if (store.get('disablePress', false) == false) {
+                //only send keyUp if button presses are allowed
+                satellite.sendKeyUp(keyNumber) // Call keyUp method on the Satellite instance
+            }
         }
     })
 
@@ -68,9 +70,10 @@ export function initializeIpcHandlers() {
         if (satellite && typeof satellite.sendKeyRotate === 'function') {
             let keyNumber: number = parseInt(keyObj.key) - 1
             let direction: number = parseInt(keyObj.direction)
-			if (store.get('disablePress', false) == false) { //only send keyRotate if button presses are allowed
-				satellite.sendKeyRotate(keyNumber, direction) // Call keyRotate method on the Satellite instance
-			}
+            if (store.get('disablePress', false) == false) {
+                //only send keyRotate if button presses are allowed
+                satellite.sendKeyRotate(keyNumber, direction) // Call keyRotate method on the Satellite instance
+            }
         }
     })
 
@@ -88,7 +91,25 @@ export function initializeIpcHandlers() {
 
     // Handle saving settings
     ipcMain.handle('saveSettings', (_, newSettings) => {
+        //if satellite port changed, close the satellite connection and re open it
+        let closeSatelliteBool = false
+
+        if (newSettings.satellitePort !== store.get('satellitePort', '')) {
+            closeSatelliteBool = true
+        }
+
         store.set(newSettings)
+
+        if (closeSatelliteBool) {
+            console.log('Satellite port changed, closing satellite connection')
+            closeSatellite()
+            setTimeout(() => {
+                console.log(
+                    'Creating satellite connection from saving settings...'
+                )
+                createSatellite(false)
+            }, 800)
+        }
     })
 
     // Handle IPC request to close the keypad

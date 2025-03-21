@@ -47,18 +47,24 @@
             "icon": "assets/tray-icon.ico"
         },
         "linux": {
-    "target": [
-        {
-            "target": "AppImage",
-            "arch": ["x64", "arm64"]
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                },
+                {
+                    "target": "deb",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ],
+            "icon": "assets/tray-icon.png"
         },
-        {
-            "target": "deb",
-            "arch": ["x64", "arm64"]
-        }
-    ],
-    "icon": "assets/tray-icon.png"
-},
         "generateUpdatesFilesForAllChannels": false
     },
     "dependencies": {

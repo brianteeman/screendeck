@@ -1,176 +1,239 @@
-// Access the settings from Electron API
-window.electronAPI.getSettings().then((settings) => {
-    const { keysTotal, keysPerRow } = settings
-    const keypad = document.getElementById('keypad')
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const deviceId = urlParams.get('deviceId')
 
-    // Set the number of columns based on keysPerRow
-    keypad.style.gridTemplateColumns = `repeat(${keysPerRow}, 1fr)`
+    if (!deviceId) {
+        console.error('No deviceId in query string')
+        throw new Error('No deviceId')
+    }
 
-    // Create the keys
-    const keyElements = []
-    for (let i = 1; i <= keysTotal; i++) {
-        const key = document.createElement('div')
-        key.className = 'key'
-        const textSpan = document.createElement('span')
-        textSpan.textContent = '' // Set the key text to empty
-        key.appendChild(textSpan)
+    let columnCount = 0
+    let rowCount = 0
+    let keysTotal = columnCount * rowCount
+    let keyElements = []
+    const activeKeys = new Set()
 
-        // Handle key down (mouse or touch start)
-        key.addEventListener('mousedown', () => sendKeyDown(i))
-        key.addEventListener('touchstart', () => sendKeyDown(i), {
-            passive: true,
+    // Request config from main process
+    window.electronAPI.invoke('get-device-config', deviceId).then((config) => {
+        columnCount = config.columnCount || 0
+        rowCount = config.rowCount || 0
+
+        if (columnCount <= 0 || rowCount <= 0) {
+            console.warn(`No keys defined for ${deviceId}. Hiding UI.`)
+            document.body.style.backgroundColor = 'transparent'
+            document.getElementById('keypad').style.display = 'none'
+            document.getElementById('closeButton').style.display = 'none'
+            return
+        }
+
+        keysTotal = columnCount * rowCount
+        keysPerRow = columnCount
+        buildKeyGrid()
+    })
+
+    function buildKeyGrid() {
+        const keypad = document.getElementById('keypad')
+        keypad.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`
+
+        keyElements = []
+
+        for (let i = 0; i < keysTotal; i++) {
+            const key = document.createElement('div')
+            key.className = 'key'
+            key.dataset.index = i
+
+            const textSpan = document.createElement('span')
+            key.appendChild(textSpan)
+
+            key.addEventListener('mousedown', () => {
+                activeKeys.add(i)
+                sendKeyPress(i, 'down')
+            })
+
+            key.addEventListener('mouseup', () => {
+                activeKeys.delete(i)
+                sendKeyPress(i, 'up')
+            })
+
+            key.addEventListener(
+                'touchstart',
+                () => {
+                    activeKeys.add(i)
+                    sendKeyPress(i, 'down')
+                },
+                { passive: true }
+            )
+
+            key.addEventListener(
+                'touchend',
+                () => {
+                    activeKeys.delete(i)
+                    sendKeyPress(i, 'up')
+                },
+                { passive: true }
+            )
+
+            keypad.appendChild(key)
+            keyElements.push(key)
+        }
+    }
+
+    function sendKeyPress(keyIndex, action) {
+        const x = keyIndex % columnCount
+        const y = Math.floor(keyIndex / columnCount)
+
+        window.electronAPI.send('keyPress', {
+            deviceId,
+            x,
+            y,
+            action,
         })
-
-        // Handle key up (mouse or touch end)
-        key.addEventListener('mouseup', () => sendKeyUp(i))
-        //key.addEventListener('mouseleave', () => sendKeyUp(i)); // Handle case when mouse leaves the key
-        key.addEventListener('touchend', () => sendKeyUp(i), { passive: true })
-
-        keypad.appendChild(key)
-        keyElements.push(key)
     }
 
-    // Key queue to handle multiple key updates
-    let keyQueue = []
-
-    function addToKeyQueue(keyObj) {
-        keyQueue.push(keyObj)
-        //implement a queue so that we can process multiple key updates one at a time
-        if (keyQueue.length === 1) {
-            processKeyQueue()
+    window.electronAPI.onShowDeviceLabel((data) => {
+        const label = document.getElementById('device-label')
+        if (label) {
+            label.textContent = data.deviceId
+            label.style.display = data.show ? 'block' : 'none'
         }
-    }
-
-    function processKeyQueue() {
-        console.log('Processing key queue. Length:', keyQueue.length)
-        if (keyQueue.length > 0) {
-            const keyObj = keyQueue.shift()
-            processKey(keyObj)
-        }
-    }
-
-    function processKey(keyObj) {
-        const { key, bitmap, color, textColor, text, fontSize } = keyObj
-        const keyIndex = key
-
-        // Check if the key index is valid
-        if (keyIndex >= 0 && keyIndex < keysTotal) {
-            const keyElement = keyElements[keyIndex]
-            const textSpan = keyElement.querySelector('span')
-
-            // Update the key image (bitmap)
-            if (bitmap) {
-                renderBitmap(keyElement, bitmap)
-            } else {
-                // Update the key background color
-                if (color) {
-                    keyElement.style.backgroundColor = color
-                }
-
-                // Decode base64 text and update the key text
-                if (text) {
-                    const decodedText = atob(text) // Decode the base64-encoded text
-                    textSpan.textContent = decodedText
-                }
-
-                // Update the text color
-                if (textColor) {
-                    textSpan.style.color = textColor
-                }
-
-                // Update the font size
-                if (fontSize) {
-                    textSpan.style.fontSize = fontSize
-                }
-            }
-        }
-
-        processKeyQueue()
-    }
-
-    // Close button event listener
-    document.getElementById('closeButton').addEventListener('click', () => {
-        window.electronAPI.invoke('closeKeypad')
     })
 
-    // Function to simulate button press based on the button index
-    function pressButton(buttonIndex) {
-        const button = document.querySelector(
-            `.key[data-index="${buttonIndex}"]`
-        )
-        if (button) {
-            // Trigger the button action
-            button.click()
-        }
-    }
-
-    // Listen for keyEvent from the main process
-    window.electronAPI.onKeyEvent((event, keyObj) => {
-        addToKeyQueue(keyObj)
+    // Handle key events from Companion
+    window.electronAPI.onDraw((event, keyObj) => {
+        if (keyObj.deviceId !== deviceId) return
+        processKey(keyObj)
     })
 
-    // Listen for brightness adjustments
+    // Handle brightness
     window.electronAPI.onBrightness((event, brightness) => {
         adjustBrightness(brightness)
     })
-})
 
-// Function to adjust the brightness of all keys
-function adjustBrightness(brightness) {
-    // Adjust the opacity of the entire keypad
-    const keypad = document.getElementById('keypad')
-    keypad.style.opacity = brightness / 100
-}
-
-// Function to render 8-bit RGB bitmap data on a canvas
-function renderBitmap(container, bitmap) {
-    requestAnimationFrame(() => {
-        const canvas =
-            container.querySelector('canvas') ||
-            document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-
-        // Decode the base64 bitmap to binary data
-        const binary = atob(bitmap)
-        const bytes = new Uint8Array(binary.length)
-
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i)
-        }
-
-        // Assuming the bitmap is a square; adjust if your data has a different width/height
-        const size = Math.sqrt(bytes.length / 3) // Calculate the size assuming it's a square (3 bytes per pixel)
-
-        canvas.width = size
-        canvas.height = size
-
-        const imageData = ctx.createImageData(size, size)
-
-        // Fill the ImageData object with the RGB pixel data
-        for (let i = 0, j = 0; i < bytes.length; i += 3, j += 4) {
-            imageData.data[j] = bytes[i] // Red
-            imageData.data[j + 1] = bytes[i + 1] // Green
-            imageData.data[j + 2] = bytes[i + 2] // Blue
-            imageData.data[j + 3] = 255 // Alpha (fully opaque)
-        }
-
-        // Draw the image on the canvas
-        ctx.putImageData(imageData, 0, 0)
-
-        // Append the canvas to the container (key element)
-        if (!container.contains(canvas)) {
-            container.innerHTML = '' // Clear existing content
-            container.appendChild(canvas)
-        }
+    // Close button
+    document.getElementById('closeButton').addEventListener('click', () => {
+        window.electronAPI.invoke('closeKeypad', deviceId) // Send deviceId so main process knows which to close
     })
-}
 
-// Function to send keyDown event
-function sendKeyDown(key) {
-    window.electronAPI.invoke('keyDown', { key })
-}
+    function processKey(keyObj) {
+        console.log('Processing key:', keyObj)
 
-// Function to send keyUp event
-function sendKeyUp(key) {
-    window.electronAPI.invoke('keyUp', { key })
-}
+        const keyIndex = keyObj.keyIndex
+        const bitmap = keyObj.image
+        const { color, textColor, text, fontSize } = keyObj
+
+        if (keyIndex < 0 || keyIndex >= keyElements.length) {
+            console.warn(
+                'Skipping invalid key index:',
+                keyIndex,
+                'Total keys:',
+                keyElements.length
+            )
+            return
+        }
+
+        const keyElement = keyElements[keyIndex]
+        if (!keyElement) {
+            console.warn('No keyElement found for key:', keyIndex)
+            return
+        }
+
+        const textSpan = keyElement.querySelector('span')
+
+        // If Companion sends a bitmap, render it
+        if (bitmap) {
+            renderBitmap(keyElement, bitmap)
+            return
+        }
+
+        // Otherwise, update color/text if provided
+        if (color) {
+            keyElement.style.backgroundColor = color
+        } else {
+            // Clear color if not provided
+            keyElement.style.backgroundColor = ''
+        }
+
+        if (textSpan) {
+            if (text) {
+                try {
+                    textSpan.textContent = atob(text)
+                } catch (err) {
+                    console.warn('Invalid base64 text, using raw:', text)
+                    textSpan.textContent = text
+                }
+            } else {
+                textSpan.textContent = ''
+            }
+
+            if (textColor) {
+                textSpan.style.color = textColor
+            } else {
+                textSpan.style.color = ''
+            }
+
+            if (fontSize) {
+                textSpan.style.fontSize = fontSize
+            } else {
+                textSpan.style.fontSize = ''
+            }
+        }
+    }
+
+    // Brightness
+    function adjustBrightness(brightness) {
+        const keypad = document.getElementById('keypad')
+        keypad.style.opacity = brightness / 100
+    }
+
+    // Bitmap Rendering
+    function renderBitmap(container, bitmap) {
+        requestAnimationFrame(() => {
+            const canvas =
+                container.querySelector('canvas') ||
+                document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+
+            try {
+                const binary = atob(bitmap)
+                const bytes = new Uint8Array(binary.length)
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i)
+                }
+
+                const size = Math.sqrt(bytes.length / 3)
+                canvas.width = size
+                canvas.height = size
+
+                const imageData = ctx.createImageData(size, size)
+                for (let i = 0, j = 0; i < bytes.length; i += 3, j += 4) {
+                    imageData.data[j] = bytes[i]
+                    imageData.data[j + 1] = bytes[i + 1]
+                    imageData.data[j + 2] = bytes[i + 2]
+                    imageData.data[j + 3] = 255
+                }
+
+                ctx.putImageData(imageData, 0, 0)
+                if (!container.contains(canvas)) {
+                    container.innerHTML = ''
+                    container.appendChild(canvas)
+                }
+            } catch (err) {
+                console.error('Error decoding bitmap:', err)
+            }
+        })
+    }
+
+    window.addEventListener('mouseup', () => {
+        activeKeys.forEach((keyIndex) => {
+            sendKeyPress(keyIndex, 'up')
+        })
+        activeKeys.clear()
+    })
+
+    window.addEventListener('blur', () => {
+        activeKeys.forEach((keyIndex) => {
+            sendKeyPress(keyIndex, 'up')
+        })
+        activeKeys.clear()
+    })
+})

@@ -17,6 +17,11 @@ body {
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    -webkit-app-region: drag;
+}
+
+.draggable-area:hover .close-button {
+    display: block;
 }
 
 /* Keypad styles */
@@ -28,9 +33,25 @@ body {
     border-radius: 8px;
 }
 
+#keypad {
+    position: relative;
+}
+
+.device-label {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    z-index: 100;
+    display: none;
+}
+
 /* Button and interactive elements should not affect drag */
-.key,
-.close-button {
+.key {
     -webkit-app-region: no-drag;
     position: relative;
     background-color: #444;
@@ -44,23 +65,26 @@ body {
     overflow: hidden;
 }
 
-/* Adjust layout and styling for the close button */
 .close-button {
+    -webkit-app-region: no-drag;
     position: absolute;
     top: 5px;
     right: 5px;
-    width: 20px;
-    height: 20px;
-    background-color: black;
-    color: white;
+    background: rgba(0, 0, 0, 0.5);
     border: none;
-    border-radius: 50%;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: white;
+    font-size: 12px;
+    padding: 2px 6px;
     cursor: pointer;
-    z-index: 10;
+    z-index: 100;
+}
+
+body:hover .close-button {
+    display: block;
+}
+
+.close-button {
+    display: none;
 }
 
 .close-button:hover {

@@ -1,54 +1,56 @@
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import type { CompanionSatelliteClient } from './client' // Your new client class
+import { initializeIpcHandlers } from './ipcHandlers' // Import IPC handlers
+import createTray from './tray' // Import the tray creation function
+
+import {
+    initializeDeviceIds,
+    createDeviceWindows,
+    createSatellite,
+} from './utils' // Import utility functions
+
 declare global {
-    var mainWindow: BrowserWindow | null
+    var satelliteClient: CompanionSatelliteClient | null
+    var deviceWindows: Map<string, BrowserWindow>
 }
 
-import { app, BrowserWindow, globalShortcut } from 'electron'
-import createTray from './tray'
-import { createMainWindow } from './mainWindow' // Import the createMainWindow function
-import { createSatellite, closeSatellite } from './satelliteFunctions' // Import createSatellite and closeSatellite functions
-import { showNotification } from './notification'
-import { initializeIpcHandlers } from './ipcHandlers' // Import IPC handlers if needed
+global.deviceWindows = new Map()
 
-let quitTimeout: NodeJS.Timeout
+// Initialize the Companion Satellite client and device windows
+function init() {
+    initializeDeviceIds() //ensure at least one deviceId exists
+    initializeIpcHandlers()
+    createDeviceWindows()
+    createSatellite()
+}
 
-app.on('ready', () => {
+app.whenReady().then(() => {
     if (process.platform === 'darwin') {
         app.dock.hide()
     }
 
-    createMainWindow()
+    init()
     createTray()
 
-    // Initialize IPC handlers after window creation
-    initializeIpcHandlers()
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createDeviceWindows()
+        }
+    })
 
-    //wait 500ms before connecting to the satellite
-    clearInterval(global.satelliteTimeout)
-    global.satelliteTimeout = setTimeout(() => {
-        createSatellite(true)
-    }, 800)
+    app.on('window-all-closed', () => {
+        //don't do anything unless closed by the tray
+    })
+
+    app.on('before-quit', () => {
+        console.log('App is quitting...')
+    })
+
+    app.on('will-quit', () => {
+        console.log('App will quit...')
+    })
+
+    app.on('quit', () => {
+        console.log('App has quit.')
+    })
 })
-
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit()
-    }
-})
-
-app.on('activate', async () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-        await app.whenReady()
-        // Create the main window if it doesn't exist
-        createMainWindow()
-    }
-})
-
-app.on('before-quit', (event) => {
-    //event.preventDefault();
-    closeSatellite() // Close the satellite connection when the app is quitting
-    quitTimeout = setTimeout(() => {
-        app.exit(0) //makes the app exit after 1 second regardless of the satellite connection
-    }, 1000)
-})
-
-app.on('quit', () => clearTimeout(quitTimeout)) // Cleanup timeout on quit

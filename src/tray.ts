@@ -16,7 +16,7 @@ export default function createTray() {
     tray.setToolTip('ScreenDeck')
 
     tray.on('click', () => {
-        showMainWindow()
+        tray?.popUpContextMenu()
     })
 
     updateTrayMenu()
@@ -24,38 +24,58 @@ export default function createTray() {
 
 // Function to update the tray menu based on the window state
 function updateTrayMenu() {
+    if (!tray) {
+        console.log('Tray has been destroyed; skipping menu update.')
+        return
+    }
+
     // Retrieve stored values
     const companionIP = store.get('companionIP', '127.0.0.1') as string
-    const deviceId = store.get('deviceId', 'Unknown') as string
     const version = app.getVersion()
 
     // Build context menu with version, IP, and Device ID
-    let contextMenuTemplate = [
+    const topMenuItems = [
         { label: `ScreenDeck Version: ${version || ''}`, enabled: false },
         { label: `Companion IP: ${companionIP || ''}`, enabled: false },
         {
-            label: `Companion Version: ${global.satellite?.companionVersion || 'Unknown'}`,
+            label: `Companion Version: ${global.satelliteClient?.companionVersion || 'Unknown'}`,
             enabled: false,
         },
         {
-            label: `Satellite API Version: ${global.satellite?.apiVersion || 'Unknown'}`,
+            label: `Satellite API Version: ${global.satelliteClient?.companionApiVersion || 'Unknown'}`,
             enabled: false,
         },
-        { label: `Device ID: ${deviceId || ''}`, enabled: false },
         {
-            label: `Connected: ${global.satellite?.isConnected ? 'Yes' : 'No'}`,
+            label: `Connected: ${global.satelliteClient?.connected ? 'Yes' : 'No'}`,
             enabled: false,
         },
         { type: 'separator' },
-        //disable press checkbox
-        {
-            label: 'Disable Button Presses',
-            type: 'checkbox',
-            checked: store.get('disablePress', false),
+    ] as Electron.MenuItemConstructorOptions[]
+
+    const devices = store.get('deviceIds') as string[]
+    const deviceMenuItems = devices.map((deviceId) => {
+        const win = global.deviceWindows.get(deviceId)
+        const isVisible = win?.isVisible() ?? false
+        return {
+            label: `${isVisible ? 'Hide' : 'Show'} ${deviceId}`,
+            type: 'normal',
             click: () => {
-                store.set('disablePress', !store.get('disablePress', false))
+                const win = global.deviceWindows.get(deviceId)
+                if (win) {
+                    if (win.isVisible()) {
+                        win.hide()
+                    } else {
+                        win.show()
+                    }
+                    // Rebuild the tray menu after toggling
+                    updateTrayMenu()
+                }
             },
-        },
+        }
+    }) as Electron.MenuItemConstructorOptions[]
+
+    const bottomMenuItems = [
+        { type: 'separator' },
         {
             label: 'Settings',
             type: 'normal',
@@ -68,47 +88,40 @@ function updateTrayMenu() {
             label: 'Quit',
             type: 'normal',
             click: () => {
+                // Disconnect Companion client
+                if (global.satelliteClient) {
+                    global.satelliteClient.disconnect() // or .disconnect() based on your API
+                }
+
+                // Close all device windows
+                global.deviceWindows?.forEach((win) => {
+                    win.close()
+                })
+
+                // Destroy the tray
+                if (tray) {
+                    tray.destroy()
+                }
+
+                // Quit the app
                 app.quit()
+
+                setTimeout(() => {
+                    console.log('Force exiting app...')
+                    process.exit(0)
+                }, 1000)
             },
         },
     ] as Electron.MenuItemConstructorOptions[]
 
-    // Add "Show Keypad" option if alwaysOnTop is false, or if the main window is not visible, but only if we are connected to Companion
-    if (!global.mainWindow?.isVisible() && global.satellite?.isConnected) {
-        contextMenuTemplate.splice(5, 0, {
-            label: 'Show Keypad',
-            type: 'normal',
-            click: () => {
-                showMainWindow()
-            },
-        })
-    }
+    const contextMenu = Menu.buildFromTemplate([
+        ...topMenuItems,
+        ...deviceMenuItems,
+        ...bottomMenuItems,
+    ])
 
-    // Add "Stop Trying to Reconnect" option if we are not connected and the satellite is trying to reconnect (global.satelliteTimeout is set)
-    if (!global.satellite?.isConnected && global.satelliteTimeout) {
-        contextMenuTemplate.splice(5, 0, {
-            label: 'Stop Trying to Connect',
-            type: 'normal',
-            click: () => {
-                clearInterval(global.satelliteTimeout)
-                global.satelliteTimeout = undefined
-                //remove this option from the menu
-                updateTrayMenu()
-            },
-        })
-    }
-
-    const contextMenu = Menu.buildFromTemplate(contextMenuTemplate)
-
-    tray?.setContextMenu(contextMenu)
-}
-
-// Function to show the main keypad window
-function showMainWindow() {
-    if (global.mainWindow) {
-        global.mainWindow.show()
-        global.mainWindow.focus()
-        updateTrayMenu()
+    if (tray) {
+        tray?.setContextMenu(contextMenu)
     }
 }
 

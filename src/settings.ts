@@ -10,7 +10,7 @@ export default function createSettingsWindow() {
     }
 
     settingsWindow = new BrowserWindow({
-        width: 400,
+        width: 600,
         height: 600,
         resizable: false,
         webPreferences: {
@@ -20,7 +20,22 @@ export default function createSettingsWindow() {
 
     settingsWindow.loadFile(path.join(__dirname, '../public/settings.html'))
 
+    //show devtools
+    /*settingsWindow.webContents.openDevTools({
+        mode: 'detach', // Open in a separate window
+    })*/
+
     settingsWindow.on('closed', () => {
         settingsWindow = null
+    })
+
+    settingsWindow.on('show', () => showDeviceLabels(true))
+    settingsWindow.on('hide', () => showDeviceLabels(false))
+    settingsWindow.on('close', () => showDeviceLabels(false))
+}
+
+function showDeviceLabels(show: boolean) {
+    global.deviceWindows.forEach((win, deviceId) => {
+        win.webContents.send('showDeviceLabel', { deviceId, show })
     })
 }

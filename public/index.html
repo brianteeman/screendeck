@@ -12,11 +12,12 @@
         <title>ScreenDeck</title>
     </head>
     <body>
-        <div class="draggable-area">
+        <div class="window-container">
+            <button id="closeButton" class="close-button">×</button>
+
+            <div id="lockIndicator" class="lock-indicator">🔒</div>
             <div id="device-label" class="device-label"></div>
-            <div id="keypad" class="keypad">
-                <button id="closeButton" class="close-button">×</button>
-            </div>
+            <div id="keypad" class="keypad"></div>
         </div>
         <script src="./index.js"></script>
     </body>

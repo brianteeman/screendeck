@@ -20,10 +20,6 @@ body {
     -webkit-app-region: drag;
 }
 
-.draggable-area:hover .close-button {
-    display: block;
-}
-
 /* Keypad styles */
 .keypad {
     display: grid;
@@ -65,6 +61,32 @@ body {
     overflow: hidden;
 }
 
+.key:hover {
+    background-color: #555;
+}
+
+.encoder {
+    cursor: ew-resize;
+}
+
+.encoder::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    border: 2px dashed #ffa500;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.window-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
 .close-button {
     -webkit-app-region: no-drag;
     position: absolute;
@@ -77,14 +99,17 @@ body {
     padding: 2px 6px;
     cursor: pointer;
     z-index: 100;
+    border-radius: 4px;
+    opacity: 0; /* Hide by default */
+    transition: opacity 0.2s ease;
 }
 
-body:hover .close-button {
-    display: block;
+.window-container:hover .close-button {
+    opacity: 1; /* Show on hover */
 }
 
-.close-button {
-    display: none;
+.keypad:hover .close-button {
+    opacity: 1;
 }
 
 .close-button:hover {
@@ -106,4 +131,116 @@ body,
 .key,
 .close-button {
     outline: none;
+}
+
+.device {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 10px 0;
+    max-width: 400px;
+    font-family: sans-serif;
+}
+
+.device strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.device label {
+    display: block;
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.device label input[type='number'],
+.device label input[type='text'] {
+    margin-left: 8px;
+    width: 60px;
+    padding: 2px 4px;
+    font-size: 14px;
+}
+
+.device-field {
+    display: flex;
+    flex-direction: column;
+    margin: 6px 0;
+}
+
+.device-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.device-actions button {
+    padding: 4px 10px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+.device-actions button:hover {
+    opacity: 0.9;
+}
+
+.device-actions button:active {
+    transform: scale(0.98);
+}
+
+.device-actions button:nth-child(1) {
+    background-color: #4caf50;
+    color: white;
+}
+
+.device-actions button:nth-child(2) {
+    background-color: #f44336;
+    color: white;
+}
+
+input[type='color'] {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.device input[type='color'] {
+    cursor: pointer;
+    width: 40px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: none;
+    z-index: 10;
+}
+
+.lock-indicator {
+    -webkit-app-region: no-drag;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    color: white;
+    font-size: 12px;
+    padding: 2px 6px;
+    z-index: 100;
+    display: none;
+    cursor: default;
+    transition: opacity 0.2s ease;
+}
+
+.keypad.disabled .lock-indicator {
+    display: block;
+}
+
+.keypad.identify-highlight {
+    outline: 3px solid yellow;
+    box-shadow: 0 0 30px 10px rgba(255, 255, 0, 0.8);
+    transition:
+        outline 0.3s ease,
+        box-shadow 0.3s ease;
 }

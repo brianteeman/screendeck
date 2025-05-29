@@ -8,9 +8,38 @@ ScreenDeck is a virtual on-screen stream deck for Bitfocus Companion, built with
 
 ## Features
 
-- **Customizable Keypad Layout**: Configure the total number of buttons and number per row.
-- **Flexible Connectivity**: Easily set the IP and port for connecting to Bitfocus Companion through the settings menu.
-- **Responsive UI**: Designed with a clean, modern interface that adjusts to your screen setup.
+✅ **Multi-Deck Support**: Create as many decks as you need, each with independent layouts and settings.
+
+- Show or hide each deck as needed
+- quickly "identify" each deck from the tray menu to find it if needed
+
+✅ **Per-Deck Configuration**:
+
+- Number of columns and rows
+- Key size (bitmap size)
+- Always-on-top toggle
+- Movable toggle (lock window in place)
+- Window position automatically saved and recalled
+- Option to disable button presses per deck
+
+✅ **Encoders (Rotary Support)**:
+
+- Right-click any key to toggle **encoder mode**
+- Drag left/right to send rotate commands (`rotateLeft`/`rotateRight`)
+
+✅ **Companion Integration**:
+
+- Connect to Companion over TCP (IP/Port configurable in settings)
+- Reconnect logic built-in
+
+✅ **Profile System**:
+
+- Save and load entire ScreenDeck layouts as profiles and easily switch between them
+
+✅ **Lightweight UI**:
+
+- Transparent, floating decks that stay on top of other windows (optional)
+- Minimalistic, responsive design
 
 ## How to Use ScreenDeck
 
@@ -84,3 +113,8 @@ ScreenDeck is an open-source project licensed under the MIT License. Feel free t
 Contact
 
 For any questions or support, feel free to reach out through GitHub Issues.
+
+## About the Author
+
+Made with 💻 and ☕ by [Joseph Adams](https://josephadams.dev)  
+Visit [josephadams.dev](https://josephadams.dev) to learn more about my work and to inquire about custom app development for your team or organization.

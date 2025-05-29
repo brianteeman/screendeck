@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Enter Profile Name</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                margin: 20px;
+            }
+            input {
+                width: 100%;
+                padding: 8px;
+                margin-bottom: 10px;
+                font-size: 16px;
+            }
+            button {
+                padding: 8px 16px;
+                margin-right: 8px;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Save Profile</h2>
+        <input type="text" id="profileName" placeholder="Profile Name" />
+        <div>
+            <button onclick="submit()">OK</button>
+            <button onclick="cancel()">Cancel</button>
+        </div>
+
+        <script>
+            window.addEventListener('DOMContentLoaded', async () => {
+                const input = document.getElementById('profileName')
+                const suggestedName =
+                    await window.electronAPI.getNextProfileName()
+                input.value = suggestedName
+                input.focus()
+            })
+
+            function submit() {
+                const name = document.getElementById('profileName').value
+                window.electronAPI.sendProfileName(name)
+            }
+
+            function cancel() {
+                window.electronAPI.sendProfileName(null)
+            }
+        </script>
+    </body>
+</html>

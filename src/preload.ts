@@ -6,6 +6,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invoke: (channel: string, data?: any) => ipcRenderer.invoke(channel, data),
     send: (channel: string, data?: any) => ipcRenderer.send(channel, data),
 
+    getNextProfileName: () => ipcRenderer.invoke('getNextProfileName'),
+
+    sendProfileName: (name: string) =>
+        ipcRenderer.send('profileNameResult', name),
+
     onShowDeviceLabel: (callback: any) =>
         ipcRenderer.on('showDeviceLabel', (_event, data) => callback(data)),
 
@@ -18,6 +23,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onDraw: (callback: (event: any, data: any) => void) => {
         ipcRenderer.on('draw', (event, data) => callback(event, data))
     },
+
+    onUpdateBackground: (callback: any) => {
+        ipcRenderer.on('updateBackground', (event, data) =>
+            callback(event, data)
+        )
+    },
+
+    onRebuildGrid: (callback: any) => {
+        ipcRenderer.on('rebuildGrid', (event, data) => callback(event, data))
+    },
+
+    onDisablePress: (callback: any) => {
+        ipcRenderer.on('disablePress', (event, data) => callback(event, data))
+    },
+
+    onIdentify: (callback: any) => ipcRenderer.on('identify', callback),
 
     // Listen for brightness changes
     onBrightness: (callback: (event: any, brightness: number) => void) => {
@@ -44,5 +65,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveSettings: (newSettings: any) =>
         ipcRenderer.invoke('saveSettings', newSettings),
 })
-
-console.log('Preload script loaded!')

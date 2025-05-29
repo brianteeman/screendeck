@@ -1,3 +1,13 @@
+// Helper function to convert hex + opacity to rgba
+function hexToRgba(hex, opacity) {
+    if (!hex) return `rgba(0,0,0,${opacity})`
+    const bigint = parseInt(hex.replace('#', ''), 16)
+    const r = (bigint >> 16) & 255
+    const g = (bigint >> 8) & 255
+    const b = bigint & 255
+    return `rgba(${r},${g},${b},${opacity})`
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search)
     const deviceId = urlParams.get('deviceId')
@@ -7,16 +17,29 @@ window.addEventListener('DOMContentLoaded', () => {
         throw new Error('No deviceId')
     }
 
-    let columnCount = 0
-    let rowCount = 0
-    let keysTotal = columnCount * rowCount
     let keyElements = []
     const activeKeys = new Set()
 
+    globalColumnCount = 0
+
+    let initialBackground = null
+    let initialOpacity = null
+
     // Request config from main process
     window.electronAPI.invoke('get-device-config', deviceId).then((config) => {
-        columnCount = config.columnCount || 0
-        rowCount = config.rowCount || 0
+        const { backgroundColor, backgroundOpacity } = config
+
+        const keypad = document.getElementById('keypad')
+        if (keypad) {
+            keypad.style.backgroundColor = hexToRgba(
+                backgroundColor,
+                backgroundOpacity
+            )
+        }
+
+        const columnCount = config.columnCount || 0
+        globalColumnCount = columnCount
+        const rowCount = config.rowCount || 0
 
         if (columnCount <= 0 || rowCount <= 0) {
             console.warn(`No keys defined for ${deviceId}. Hiding UI.`)
@@ -26,16 +49,19 @@ window.addEventListener('DOMContentLoaded', () => {
             return
         }
 
-        keysTotal = columnCount * rowCount
-        keysPerRow = columnCount
-        buildKeyGrid()
+        buildKeyGrid(columnCount, rowCount)
     })
 
-    function buildKeyGrid() {
+    function buildKeyGrid(columnCount, rowCount) {
         const keypad = document.getElementById('keypad')
         keypad.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`
 
+        // Remove only existing keys
+        keypad.querySelectorAll('.key').forEach((key) => key.remove())
+
         keyElements = []
+
+        keysTotal = columnCount * rowCount
 
         for (let i = 0; i < keysTotal; i++) {
             const key = document.createElement('div')
@@ -45,9 +71,64 @@ window.addEventListener('DOMContentLoaded', () => {
             const textSpan = document.createElement('span')
             key.appendChild(textSpan)
 
-            key.addEventListener('mousedown', () => {
-                activeKeys.add(i)
-                sendKeyPress(i, 'down')
+            key.addEventListener('mousedown', (e) => {
+                if (e.button === 2) {
+                    // Right-click: ignore
+                    return
+                }
+
+                window.electronAPI
+                    .invoke('getKeyConfig', {
+                        deviceId,
+                        keyIndex: i,
+                    })
+                    .then((keyConfig) => {
+                        const isEncoder = keyConfig.isEncoder
+                        const stepSize = keyConfig.stepSize || 10
+
+                        if (isEncoder) {
+                            e.preventDefault()
+
+                            let accumulatedDeltaX = 0
+                            let lastX = e.clientX
+
+                            const onMove = (moveEvent) => {
+                                const deltaX = moveEvent.clientX - lastX
+                                accumulatedDeltaX += deltaX
+
+                                while (
+                                    Math.abs(accumulatedDeltaX) >= stepSize
+                                ) {
+                                    const direction =
+                                        accumulatedDeltaX > 0
+                                            ? 'rotateRight'
+                                            : 'rotateLeft'
+
+                                    sendKeyPress(i, direction)
+
+                                    // Subtract the step in the direction we just sent
+                                    if (accumulatedDeltaX > 0) {
+                                        accumulatedDeltaX -= stepSize
+                                    } else {
+                                        accumulatedDeltaX += stepSize
+                                    }
+                                }
+
+                                lastX = moveEvent.clientX
+                            }
+
+                            const onUp = () => {
+                                window.removeEventListener('mousemove', onMove)
+                                window.removeEventListener('mouseup', onUp)
+                            }
+
+                            window.addEventListener('mousemove', onMove)
+                            window.addEventListener('mouseup', onUp)
+                        } else {
+                            activeKeys.add(i)
+                            sendKeyPress(i, 'down')
+                        }
+                    })
             })
 
             key.addEventListener('mouseup', () => {
@@ -73,15 +154,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 { passive: true }
             )
 
+            key.addEventListener('contextmenu', (e) => {
+                e.preventDefault()
+
+                window.electronAPI
+                    .invoke('toggleEncoder', { deviceId, keyIndex: i })
+                    .then((newIsEncoder) => {
+                        key.classList.toggle('encoder', newIsEncoder)
+                    })
+            })
+
             keypad.appendChild(key)
             keyElements.push(key)
         }
     }
 
     function sendKeyPress(keyIndex, action) {
-        const x = keyIndex % columnCount
-        const y = Math.floor(keyIndex / columnCount)
+        const x = keyIndex % globalColumnCount
+        const y = Math.floor(keyIndex / globalColumnCount)
 
+        sendKeyPressXY(x, y, action)
+    }
+
+    function sendKeyPressXY(x, y, action) {
         window.electronAPI.send('keyPress', {
             deviceId,
             x,
@@ -96,6 +191,57 @@ window.addEventListener('DOMContentLoaded', () => {
             label.textContent = data.deviceId
             label.style.display = data.show ? 'block' : 'none'
         }
+    })
+
+    window.electronAPI.onDisablePress((_, disabled) => {
+        const keypad = document.getElementById('keypad')
+        const lock = document.getElementById('lockIndicator')
+
+        if (keypad && lock) {
+            keypad.classList.toggle('disabled', disabled)
+            lock.style.display = disabled ? 'block' : 'none'
+        }
+    })
+
+    window.electronAPI.onIdentify(() => {
+        const keypad = document.getElementById('keypad')
+        if (!keypad) return
+
+        // Apply flash - yellow in rgba
+        keypad.style.backgroundColor = 'rgba(255, 255, 0, 1)'
+        //add transition for smooth effect
+        keypad.style.transition = 'background-color 0.5s ease'
+
+        setTimeout(() => {
+            window.electronAPI
+                .invoke('get-device-config', deviceId)
+                .then((config) => {
+                    console.log('got config:', config)
+                    const { backgroundColor, backgroundOpacity } = config
+
+                    const keypad = document.getElementById('keypad')
+                    if (keypad) {
+                        keypad.style.backgroundColor = hexToRgba(
+                            backgroundColor,
+                            backgroundOpacity
+                        )
+                    }
+                })
+        }, 800)
+    })
+
+    window.electronAPI.onUpdateBackground((_, data) => {
+        console.log('Updating background:', data)
+        const keypad = document.getElementById('keypad')
+        keypad.style.backgroundColor = hexToRgba(
+            data.backgroundColor,
+            data.backgroundOpacity
+        )
+    })
+
+    window.electronAPI.onRebuildGrid((_, { columnCount, rowCount }) => {
+        globalColumnCount = columnCount
+        buildKeyGrid(columnCount, rowCount)
     })
 
     // Handle key events from Companion

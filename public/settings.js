@@ -57,23 +57,62 @@ window.addEventListener('DOMContentLoaded', () => {
                 device.disablePress
             )
 
-            container.appendChild(columnCountInput.label)
-            container.appendChild(columnCountInput.input)
-            container.appendChild(document.createElement('br'))
-            container.appendChild(rowCountInput.label)
-            container.appendChild(rowCountInput.input)
-            container.appendChild(document.createElement('br'))
-            container.appendChild(bitmapSizeInput.label)
-            container.appendChild(bitmapSizeInput.input)
-            container.appendChild(document.createElement('br'))
-            container.appendChild(alwaysOnTopInput.label)
-            container.appendChild(alwaysOnTopInput.input)
-            container.appendChild(document.createElement('br'))
-            container.appendChild(movableInput.label)
-            container.appendChild(movableInput.input)
-            container.appendChild(document.createElement('br'))
-            container.appendChild(disablePressInput.label)
-            container.appendChild(disablePressInput.input)
+            // Create color picker
+            const backgroundColorInput = document.createElement('input')
+            backgroundColorInput.type = 'color'
+            backgroundColorInput.value = device.backgroundColor || '#000000'
+
+            const backgroundOpacityInput = document.createElement('input')
+            backgroundOpacityInput.type = 'range'
+            backgroundOpacityInput.min = 0
+            backgroundOpacityInput.max = 1
+            backgroundOpacityInput.step = 0.01
+            backgroundOpacityInput.value = device.backgroundOpacity || 0.5
+
+            const backgroundColorLabel = document.createElement('label')
+            backgroundColorLabel.textContent = 'Background Color: '
+            backgroundColorLabel.appendChild(backgroundColorInput)
+
+            const backgroundOpacityLabel = document.createElement('label')
+            backgroundOpacityLabel.textContent = 'Background Opacity: '
+            backgroundOpacityLabel.appendChild(backgroundOpacityInput)
+
+            /*backgroundColorInput.addEventListener('input', async () => {
+                await window.electronAPI.invoke('updateDeviceConfig', {
+                    deviceId: device.deviceId,
+                    config: { backgroundColor: backgroundColorInput.value },
+                })
+            })*/
+
+            backgroundOpacityInput.addEventListener('input', async () => {
+                await window.electronAPI.invoke('updateDeviceConfig', {
+                    deviceId: device.deviceId,
+                    config: {
+                        backgroundOpacity: parseFloat(
+                            backgroundOpacityInput.value
+                        ),
+                    },
+                })
+            })
+
+            container.appendChild(document.createElement('hr'))
+
+            const inputs = [
+                columnCountInput,
+                rowCountInput,
+                bitmapSizeInput,
+                alwaysOnTopInput,
+                movableInput,
+                disablePressInput,
+            ]
+
+            inputs.forEach((inputObj) => {
+                container.appendChild(inputObj.label)
+                container.appendChild(inputObj.input)
+            })
+
+            container.appendChild(backgroundColorLabel)
+            container.appendChild(backgroundOpacityLabel)
 
             // Save & Delete buttons
             const actions = document.createElement('div')
@@ -89,12 +128,34 @@ window.addEventListener('DOMContentLoaded', () => {
                     alwaysOnTop: alwaysOnTopInput.input.checked,
                     movable: movableInput.input.checked,
                     disablePress: disablePressInput.input.checked,
+                    backgroundColor: backgroundColorInput.value,
+                    backgroundOpacity: parseFloat(backgroundOpacityInput.value),
                 }
                 await window.electronAPI.invoke('updateDeviceConfig', {
                     deviceId: device.deviceId,
                     config,
                 })
-                //alert('Settings saved!')
+                if (!container.querySelector('.save-confirmation')) {
+                    const confirmation = document.createElement('span')
+                    confirmation.className = 'save-confirmation'
+                    confirmation.textContent = 'Settings saved!'
+                    confirmation.style.marginLeft = '10px'
+                    confirmation.style.fontSize = '12px'
+                    confirmation.style.color = '#4CAF50'
+                    confirmation.style.opacity = '0'
+                    confirmation.style.transition = 'opacity 0.3s ease'
+
+                    actions.appendChild(confirmation)
+
+                    setTimeout(() => {
+                        confirmation.style.opacity = '1'
+                    }, 10)
+
+                    setTimeout(() => {
+                        confirmation.style.opacity = '0'
+                        setTimeout(() => confirmation.remove(), 300)
+                    }, 1500)
+                }
             })
             actions.appendChild(saveBtn)
 

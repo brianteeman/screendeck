@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import type { CompanionSatelliteClient } from './client' // Your new client class
 import { initializeIpcHandlers } from './ipcHandlers' // Import IPC handlers
 import createTray from './tray' // Import the tray creation function
@@ -19,18 +19,18 @@ global.deviceWindows = new Map()
 // Initialize the Companion Satellite client and device windows
 function init() {
     initializeDeviceIds() //ensure at least one deviceId exists
-    initializeIpcHandlers()
-    createDeviceWindows()
-    createSatellite()
+    initializeIpcHandlers() // Set up IPC handlers
+    createDeviceWindows() // Create device windows
+    createSatellite() // Initialize the Companion Satellite client
 }
 
 app.whenReady().then(() => {
     if (process.platform === 'darwin') {
-        app.dock.hide()
+        app.dock.hide() // Hide the dock icon on macOS
     }
 
-    init()
-    createTray()
+    init() // Initialize the app, IPC handlers, and device windows
+    createTray() // Create the system tray icon
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

@@ -8,6 +8,7 @@ import {
     calculateWindowSize,
 } from './utils' // Import your window creation function
 import { updateTrayMenu } from './tray'
+import { getNextProfileName } from './utils' // Import the profile management function
 
 const store = new Store({ defaults: defaultSettings })
 
@@ -19,6 +20,14 @@ export function initializeIpcHandlers() {
         const alwaysOnTop = store.get(`device.${deviceId}.alwaysOnTop`, false)
         const movable = store.get(`device.${deviceId}.movable`, true)
         const disablePress = store.get(`device.${deviceId}.disablePress`, false)
+        const backgroundColor = store.get(
+            `device.${deviceId}.backgroundColor`,
+            '#000000'
+        )
+        const backgroundOpacity = store.get(
+            `device.${deviceId}.backgroundOpacity`,
+            0.5
+        )
 
         return {
             columnCount,
@@ -27,6 +36,8 @@ export function initializeIpcHandlers() {
             alwaysOnTop,
             movable,
             disablePress,
+            backgroundColor,
+            backgroundOpacity,
         }
     })
 
@@ -34,6 +45,7 @@ export function initializeIpcHandlers() {
         const win = global.deviceWindows.get(deviceId)
         if (win) {
             win.hide()
+            store.set(`device.${deviceId}.hidden`, true)
         }
 
         updateTrayMenu()
@@ -58,6 +70,29 @@ export function initializeIpcHandlers() {
         } else if (action === 'rotateRight') {
             global.satelliteClient.rotateRightXY(deviceId, x, y)
         }
+    })
+
+    ipcMain.handle('getKeyConfig', (_event, { deviceId, keyIndex }) => {
+        return {
+            isEncoder: store.get(
+                `device.${deviceId}.key.${keyIndex}.isEncoder`,
+                false
+            ),
+            stepSize: store.get(
+                `device.${deviceId}.key.${keyIndex}.stepSize`,
+                10
+            ),
+        }
+    })
+
+    ipcMain.handle('toggleEncoder', (_event, { deviceId, keyIndex }) => {
+        const current = store.get(
+            `device.${deviceId}.key.${keyIndex}.isEncoder`,
+            false
+        )
+        const newValue = !current
+        store.set(`device.${deviceId}.key.${keyIndex}.isEncoder`, newValue)
+        return newValue
     })
 
     // Handle brightness request from renderer (optional)
@@ -90,31 +125,36 @@ export function initializeIpcHandlers() {
             alwaysOnTop: store.get(`device.${id}.alwaysOnTop`, false),
             movable: store.get(`device.${id}.movable`, true),
             disablePress: store.get(`device.${id}.disablePress`, false),
+            backgroundColor: store.get(
+                `device.${id}.backgroundColor`,
+                '#000000'
+            ),
+            backgroundOpacity: store.get(`device.${id}.backgroundOpacity`, 0.5),
         }))
     })
 
     ipcMain.handle('updateDeviceConfig', (_event, { deviceId, config }) => {
+        let needsDeviceUpdate = false
+
+        // Check if key properties have actually changed
+        for (const key of ['columnCount', 'rowCount', 'bitmapSize']) {
+            const oldValue = store.get(`device.${deviceId}.${key}`)
+            const newValue = config[key]
+
+            if (newValue !== undefined && newValue !== oldValue) {
+                needsDeviceUpdate = true
+                break
+            }
+        }
+
+        // Save all config values
         Object.entries(config).forEach(([key, value]) => {
             store.set(`device.${deviceId}.${key}`, value)
         })
 
-        // If the Satellite client is connected, update the device config
-        if (global.satelliteClient) {
-            //delete the device first to ensure it gets re-registered with the new config
-            global.satelliteClient.removeDevice(deviceId)
-            global.satelliteClient.addDevice(deviceId, 'ScreenDeck', {
-                columnCount: store.get(`device.${deviceId}.columnCount`, 8),
-                rowCount: store.get(`device.${deviceId}.rowCount`, 4),
-                bitmapSize: store.get(`device.${deviceId}.bitmapSize`, 72),
-                colours: true,
-                text: true,
-                brightness: true,
-                pincodeMap: null,
-            })
-        }
         console.log(`Device ${deviceId} config updated:`, config)
 
-        // Also update the BrowserWindow properties
+        // Update the BrowserWindow properties
         const win = global.deviceWindows.get(deviceId)
         if (win) {
             if (config.alwaysOnTop !== undefined) {
@@ -123,13 +163,15 @@ export function initializeIpcHandlers() {
             if (config.movable !== undefined) {
                 win.setMovable(Boolean(config.movable))
             }
+            if (config.disablePress !== undefined) {
+                win.webContents.send(
+                    'disablePress',
+                    Boolean(config.disablePress)
+                )
+            }
 
             // Resize window if columnCount/rowCount/bitmapSize changed
-            if (
-                config.columnCount !== undefined ||
-                config.rowCount !== undefined ||
-                config.bitmapSize !== undefined
-            ) {
+            if (needsDeviceUpdate) {
                 const columnCount = store.get(
                     `device.${deviceId}.columnCount`,
                     8
@@ -147,12 +189,61 @@ export function initializeIpcHandlers() {
                 )
 
                 win.setSize(width, height)
+
+                // If the Satellite client is connected and key properties changed, update the device config
+                if (global.satelliteClient) {
+                    global.satelliteClient.removeDevice(deviceId)
+                    global.satelliteClient.addDevice(deviceId, 'ScreenDeck', {
+                        columnCount: store.get(
+                            `device.${deviceId}.columnCount`,
+                            8
+                        ),
+                        rowCount: store.get(`device.${deviceId}.rowCount`, 4),
+                        bitmapSize: store.get(
+                            `device.${deviceId}.bitmapSize`,
+                            72
+                        ),
+                        colours: true,
+                        text: true,
+                        brightness: true,
+                        pincodeMap: null,
+                    })
+                }
+
+                win.webContents.send('rebuildGrid', {
+                    columnCount,
+                    rowCount,
+                })
             }
+
+            // Update background color/opacity *live*
+            if (
+                config.backgroundColor !== undefined ||
+                config.backgroundOpacity !== undefined
+            ) {
+                const backgroundColor = store.get(
+                    `device.${deviceId}.backgroundColor`,
+                    '#000000'
+                )
+                const backgroundOpacity = store.get(
+                    `device.${deviceId}.backgroundOpacity`,
+                    0.5
+                )
+
+                console.log('Updating background color/opacity:', {
+                    backgroundColor,
+                    backgroundOpacity,
+                })
+
+                win.webContents.send('updateBackground', {
+                    backgroundColor,
+                    backgroundOpacity,
+                })
+            }
+
+            win.show()
         }
 
-        win?.show()
-
-        // Update the tray menu to reflect changes
         updateTrayMenu()
     })
 
@@ -212,5 +303,9 @@ export function initializeIpcHandlers() {
                 createSatellite() // Your function to initialize the Satellite client
             }, 500)
         }
+    })
+
+    ipcMain.handle('getNextProfileName', () => {
+        return getNextProfileName()
     })
 }

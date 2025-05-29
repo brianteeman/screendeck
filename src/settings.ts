@@ -3,6 +3,9 @@ import * as path from 'path'
 
 let settingsWindow: BrowserWindow | null = null
 
+const showDevTools =
+    process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true'
+
 export default function createSettingsWindow() {
     if (settingsWindow) {
         settingsWindow.focus()
@@ -10,7 +13,7 @@ export default function createSettingsWindow() {
     }
 
     settingsWindow = new BrowserWindow({
-        width: 600,
+        width: 350,
         height: 600,
         resizable: false,
         webPreferences: {
@@ -21,9 +24,11 @@ export default function createSettingsWindow() {
     settingsWindow.loadFile(path.join(__dirname, '../public/settings.html'))
 
     //show devtools
-    /*settingsWindow.webContents.openDevTools({
-        mode: 'detach', // Open in a separate window
-    })*/
+    if (showDevTools) {
+        settingsWindow.webContents.openDevTools({
+            mode: 'detach', // Open in a separate window
+        })
+    }
 
     settingsWindow.on('closed', () => {
         settingsWindow = null

@@ -2,6 +2,13 @@ import { Tray, Menu, nativeImage, app } from 'electron'
 import * as path from 'path'
 import Store from 'electron-store'
 import createSettingsWindow from './settings' // Import the createSettingsWindow function
+import {
+    loadProfile,
+    deleteProfile,
+    saveProfile,
+    promptForProfileName,
+} from './utils' // Import profile management functions
+import { ProfilesStore } from './types' // Import the ProfilesStore type
 
 let tray: Tray | null = null
 const store = new Store()
@@ -56,23 +63,89 @@ function updateTrayMenu() {
     const deviceMenuItems = devices.map((deviceId) => {
         const win = global.deviceWindows.get(deviceId)
         const isVisible = win?.isVisible() ?? false
+        const isDisabled = store.get(`device.${deviceId}.disablePress`, false)
+
         return {
-            label: `${isVisible ? 'Hide' : 'Show'} ${deviceId}`,
-            type: 'normal',
-            click: () => {
-                const win = global.deviceWindows.get(deviceId)
-                if (win) {
-                    if (win.isVisible()) {
-                        win.hide()
-                    } else {
-                        win.show()
-                    }
-                    // Rebuild the tray menu after toggling
-                    updateTrayMenu()
-                }
-            },
+            label: deviceId,
+            submenu: [
+                {
+                    label: 'Identify',
+                    type: 'normal',
+                    click: () => {
+                        const win = global.deviceWindows.get(deviceId)
+                        if (win) {
+                            //show the window if it's hidden
+                            if (!isVisible) {
+                                win.show()
+                                store.set(`device.${deviceId}.hidden`, false)
+                            }
+                            win.webContents.send('identify')
+                        }
+                    },
+                },
+                {
+                    label: isVisible ? 'Hide' : 'Show',
+                    type: 'normal',
+                    click: () => {
+                        const win = global.deviceWindows.get(deviceId)
+                        if (win) {
+                            if (win.isVisible()) {
+                                win.hide()
+                                store.set(`device.${deviceId}.hidden`, true)
+                            } else {
+                                win.show()
+                                store.set(`device.${deviceId}.hidden`, false)
+                            }
+                            updateTrayMenu()
+                        }
+                    },
+                },
+                {
+                    label: isDisabled
+                        ? 'Enable Button Presses'
+                        : 'Disable Button Presses',
+                    type: 'normal',
+                    click: () => {
+                        const newState = !isDisabled
+                        store.set(`device.${deviceId}.disablePress`, newState)
+
+                        const win = global.deviceWindows.get(deviceId)
+                        if (win) {
+                            win.webContents.send('disablePress', newState)
+                        }
+
+                        updateTrayMenu()
+                    },
+                },
+            ],
         }
     }) as Electron.MenuItemConstructorOptions[]
+
+    const profiles = store.get('profiles', {}) as ProfilesStore
+    const profileNames = Object.keys(profiles)
+
+    const loadProfileMenu = Object.entries(profiles).map(([id, profile]) => ({
+        label: profile.name,
+        click: () => loadProfile(id),
+    }))
+
+    const deleteProfileMenu = Object.entries(profiles).map(([id, profile]) => ({
+        label: profile.name,
+        click: () => deleteProfile(id),
+    }))
+
+    const profileMenuItems = [
+        { type: 'separator' },
+        {
+            label: 'Save Current Profile',
+            click: async () => {
+                const profileName = await promptForProfileName()
+                if (profileName) saveProfile(profileName)
+            },
+        },
+        { label: 'Load Profile', submenu: loadProfileMenu },
+        { label: 'Delete Profile', submenu: deleteProfileMenu },
+    ] as Electron.MenuItemConstructorOptions[]
 
     const bottomMenuItems = [
         { type: 'separator' },
@@ -112,11 +185,21 @@ function updateTrayMenu() {
                 }, 1000)
             },
         },
+        { type: 'separator' },
+        {
+            label: 'About the Developer',
+            click: () => {
+                require('electron').shell.openExternal(
+                    'https://josephadams.dev'
+                )
+            },
+        },
     ] as Electron.MenuItemConstructorOptions[]
 
     const contextMenu = Menu.buildFromTemplate([
         ...topMenuItems,
         ...deviceMenuItems,
+        ...profileMenuItems,
         ...bottomMenuItems,
     ])
 

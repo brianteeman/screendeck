@@ -19,7 +19,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 companionPort: port,
             })
 
-            alert('Companion settings saved! Restart the app to apply changes.')
+            // Show status message
+            const status = document.getElementById('saveStatus')
+            status.textContent = '✅ Settings Saved!'
+
+            // Optionally clear the message after a few seconds
+            setTimeout(() => {
+                status.textContent = ''
+                window.close() // or remove this line if you don't want to auto-close
+            }, 1000)
         })
 
     async function loadCompanionSettings() {

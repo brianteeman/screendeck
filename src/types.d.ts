@@ -20,6 +20,7 @@ export interface DeviceConfig {
     alwaysOnTop: boolean
     movable: boolean
     disablePress: boolean
+    autoHide: boolean
     bounds?: Electron.Rectangle | null
 }
 

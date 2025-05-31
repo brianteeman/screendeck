@@ -1,4 +1,5 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
+import * as path from 'path'
 import Store from 'electron-store'
 import { defaultSettings } from './defaults'
 import {
@@ -8,18 +9,20 @@ import {
     calculateWindowSize,
 } from './utils' // Import your window creation function
 import { updateTrayMenu } from './tray'
-import { getNextProfileName } from './utils' // Import the profile management function
+import { getNextProfileName, showDeviceLabels } from './utils' // Import the profile management function
+import { registerHotkey, unregisterHotkey } from './hotkeys' // Import the hotkey registration function
 
 const store = new Store({ defaults: defaultSettings })
 
 export function initializeIpcHandlers() {
-    ipcMain.handle('get-device-config', (_event, deviceId) => {
+    ipcMain.handle('getDeviceConfig', (_event, deviceId) => {
         const columnCount = store.get(`device.${deviceId}.columnCount`, 8)
         const rowCount = store.get(`device.${deviceId}.rowCount`, 4)
         const bitmapSize = store.get(`device.${deviceId}.bitmapSize`, 72)
         const alwaysOnTop = store.get(`device.${deviceId}.alwaysOnTop`, false)
         const movable = store.get(`device.${deviceId}.movable`, true)
         const disablePress = store.get(`device.${deviceId}.disablePress`, false)
+        const autoHide = store.get(`device.${deviceId}.autoHide`, false)
         const backgroundColor = store.get(
             `device.${deviceId}.backgroundColor`,
             '#000000'
@@ -36,13 +39,38 @@ export function initializeIpcHandlers() {
             alwaysOnTop,
             movable,
             disablePress,
+            autoHide,
             backgroundColor,
             backgroundOpacity,
         }
     })
 
+    ipcMain.handle('getKeypadBounds', (_event, deviceId) => {
+        const win = global.deviceWindows?.get(deviceId)
+        if (win) {
+            const bounds = win.getBounds()
+            const bitmapSize = store.get(`device.${deviceId}.bitmapSize`, 72)
+            return { ...bounds, bitmapSize }
+        }
+        return null
+    })
+
+    ipcMain.handle(
+        'resizeKeypadWindow',
+        (_event, { deviceId, width, height }) => {
+            const win = global.deviceWindows?.get(deviceId)
+            if (win) {
+                win.setBounds({
+                    ...win.getBounds(),
+                    width,
+                    height,
+                })
+            }
+        }
+    )
+
     ipcMain.handle('closeKeypad', (_event, deviceId) => {
-        const win = global.deviceWindows.get(deviceId)
+        const win = global.deviceWindows?.get(deviceId)
         if (win) {
             win.hide()
             store.set(`device.${deviceId}.hidden`, true)
@@ -85,6 +113,16 @@ export function initializeIpcHandlers() {
         }
     })
 
+    ipcMain.handle(
+        'updateKeyConfig',
+        (_event, { deviceId, keyIndex, config }) => {
+            const isEncoder = config.isEncoder ?? false
+            const stepSize = config.stepSize ?? 10
+            store.set(`device.${deviceId}.key.${keyIndex}.isEncoder`, isEncoder)
+            store.set(`device.${deviceId}.key.${keyIndex}.stepSize`, stepSize)
+        }
+    )
+
     ipcMain.handle('toggleEncoder', (_event, { deviceId, keyIndex }) => {
         const current = store.get(
             `device.${deviceId}.key.${keyIndex}.isEncoder`,
@@ -102,6 +140,135 @@ export function initializeIpcHandlers() {
         })
     })
 
+    //HOTKEYS
+    ipcMain.handle(
+        'setHotkeyContext',
+        (_event, { deviceId, keyIndex, imageBase64 }) => {
+            global.hotkeyContext = { deviceId, keyIndex, imageBase64 }
+        }
+    )
+
+    // Get key context for the hotkey prompt
+    ipcMain.handle('getHotkeyContext', (_event) => {
+        const context = global.hotkeyContext // deviceId, keyIndex, imageBase64
+
+        if (!context) {
+            return undefined
+        }
+
+        const { deviceId, keyIndex, imageBase64 } = context
+
+        // Get list of current hotkeys
+        const hotkeys = []
+        for (const [hotkey, mapping] of global.registeredHotkeys.entries()) {
+            hotkeys.push({
+                hotkey,
+                deviceId: mapping.deviceId,
+                keyIndex: mapping.keyIndex,
+                imageBase64: mapping.imageBase64,
+            })
+        }
+
+        return {
+            deviceId,
+            keyIndex,
+            imageBase64,
+            currentHotkeys: hotkeys,
+        }
+    })
+
+    ipcMain.handle('openHotkeyPrompt', () => {
+        if (
+            global.hotkeyPromptWindow &&
+            !global.hotkeyPromptWindow.isDestroyed()
+        ) {
+            global.hotkeyPromptWindow.focus()
+            return
+        }
+
+        const focusedWindow = BrowserWindow.getFocusedWindow()
+        const win = new BrowserWindow({
+            width: 500,
+            height: 800,
+            modal: true, // 👈 This makes it modal
+            ...(focusedWindow ? { parent: focusedWindow } : {}),
+            resizable: false,
+            minimizable: false,
+            maximizable: false,
+            frame: false,
+            title: 'Assign Hotkey',
+            webPreferences: {
+                preload: path.join(__dirname, 'preload.js'),
+                contextIsolation: true,
+            },
+        })
+
+        win.loadFile(path.join(__dirname, '../public/hotkeyPrompt.html'))
+
+        //show dev tools
+        win.webContents.openDevTools({ mode: 'detach' })
+
+        win.on('show', () => showDeviceLabels(true))
+        win.on('hide', () => showDeviceLabels(false))
+        win.on('close', () => showDeviceLabels(false))
+
+        global.hotkeyPromptWindow = win
+
+        win.on('closed', () => {
+            global.hotkeyPromptWindow = null
+        })
+    })
+
+    ipcMain.handle('closeHotkeyPrompt', () => {
+        if (
+            global.hotkeyPromptWindow &&
+            !global.hotkeyPromptWindow.isDestroyed()
+        ) {
+            global.hotkeyPromptWindow.close()
+        }
+    })
+
+    // Handle assignHotkey
+    ipcMain.handle('assignHotkey', (_event, { deviceId, keyIndex, hotkey }) => {
+        const columnCount = store.get(`device.${deviceId}.columnCount`, 8)
+        const x = keyIndex % columnCount
+        const y = Math.floor(keyIndex / columnCount)
+
+        // Register in hotkeys.ts
+        const success = registerHotkey(hotkey, deviceId, keyIndex)
+        if (success) {
+            // Save to store
+            const keyConfig = store.get(
+                `device.${deviceId}.keys`,
+                {}
+            ) as Record<number, { hotkey?: string }>
+            keyConfig[keyIndex] = { ...(keyConfig[keyIndex] || {}), hotkey }
+            store.set(`device.${deviceId}.keys`, keyConfig)
+        }
+
+        return success
+    })
+
+    ipcMain.handle('clearHotkey', (_event, { deviceId, keyIndex, hotkey }) => {
+        unregisterHotkey(hotkey)
+
+        const keyConfig = store.get(`device.${deviceId}.keys`, {}) as Record<
+            number,
+            { hotkey?: string }
+        >
+        if (keyConfig[keyIndex]) {
+            delete keyConfig[keyIndex].hotkey
+            store.set(`device.${deviceId}.keys`, keyConfig)
+        }
+
+        return true
+    })
+
+    ipcMain.handle('showDeviceLabels', (_event, show) => {
+        showDeviceLabels(show)
+    })
+
+    //SETTINGS
     ipcMain.handle('createNewDevice', () => {
         const newDeviceId = createNewDevice()
 
@@ -111,6 +278,16 @@ export function initializeIpcHandlers() {
 
         // Create the window
         createDeviceWindow(newDeviceId)
+
+        global.satelliteClient?.addDevice(newDeviceId, 'ScreenDeck', {
+            columnCount: store.get(`device.${newDeviceId}.columnCount`, 8),
+            rowCount: store.get(`device.${newDeviceId}.rowCount`, 4),
+            bitmapSize: store.get(`device.${newDeviceId}.bitmapSize`, 72),
+            colours: true,
+            text: true,
+            brightness: true,
+            pincodeMap: null,
+        })
 
         return newDeviceId
     })
@@ -125,6 +302,7 @@ export function initializeIpcHandlers() {
             alwaysOnTop: store.get(`device.${id}.alwaysOnTop`, false),
             movable: store.get(`device.${id}.movable`, true),
             disablePress: store.get(`device.${id}.disablePress`, false),
+            autoHide: store.get(`device.${id}.autoHide`, false),
             backgroundColor: store.get(
                 `device.${id}.backgroundColor`,
                 '#000000'
@@ -168,6 +346,9 @@ export function initializeIpcHandlers() {
                     'disablePress',
                     Boolean(config.disablePress)
                 )
+            }
+            if (config.autoHide !== undefined) {
+                win.webContents.send('autoHide', Boolean(config.autoHide))
             }
 
             // Resize window if columnCount/rowCount/bitmapSize changed
@@ -305,6 +486,14 @@ export function initializeIpcHandlers() {
         }
     })
 
+    ipcMain.handle('closeSettingsWindow', () => {
+        const settingsWindow = global.settingsWindow
+        if (settingsWindow) {
+            settingsWindow.close()
+        }
+    })
+
+    //PROFILE MANAGEMENT
     ipcMain.handle('getNextProfileName', () => {
         return getNextProfileName()
     })

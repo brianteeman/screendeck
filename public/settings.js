@@ -26,9 +26,13 @@ window.addEventListener('DOMContentLoaded', () => {
             // Optionally clear the message after a few seconds
             setTimeout(() => {
                 status.textContent = ''
-                window.close() // or remove this line if you don't want to auto-close
+                window.electronAPI.invoke('closeSettingsWindow')
             }, 1000)
         })
+
+    document.getElementById('closeButton').addEventListener('click', () => {
+        window.electronAPI.invoke('closeSettingsWindow')
+    })
 
     async function loadCompanionSettings() {
         const settings = await window.electronAPI.invoke('getSettings')
@@ -63,6 +67,10 @@ window.addEventListener('DOMContentLoaded', () => {
             const disablePressInput = createCheckbox(
                 'Disable Button Presses',
                 device.disablePress
+            )
+            const autoHideInput = createCheckbox(
+                'Auto Hide on Mouse Leave',
+                device.autoHide || false
             )
 
             // Create color picker
@@ -112,6 +120,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 alwaysOnTopInput,
                 movableInput,
                 disablePressInput,
+                autoHideInput,
             ]
 
             inputs.forEach((inputObj) => {
@@ -136,6 +145,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     alwaysOnTop: alwaysOnTopInput.input.checked,
                     movable: movableInput.input.checked,
                     disablePress: disablePressInput.input.checked,
+                    autoHide: autoHideInput.input.checked,
                     backgroundColor: backgroundColorInput.value,
                     backgroundOpacity: parseFloat(backgroundOpacityInput.value),
                 }

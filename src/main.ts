@@ -9,19 +9,61 @@ import {
     createSatellite,
 } from './utils' // Import utility functions
 
+import { loadHotkeysFromStore } from './hotkeys'
+
 declare global {
     var satelliteClient: CompanionSatelliteClient | null
     var deviceWindows: Map<string, BrowserWindow>
+    var keyStates: Map<
+        string,
+        Map<
+            number,
+            {
+                imageBase64?: string
+                color?: string
+                text?: string
+                // add more fields as needed (e.g., textColor, fontSize)
+            }
+        >
+    >
+    var hotkeyPromptWindow: BrowserWindow | null
+    var hotkeyContext: {
+        deviceId: string
+        keyIndex: number
+        imageBase64: string
+    } | null
+    var registeredHotkeys: Map<
+        string,
+        { deviceId: string; keyIndex: number; imageBase64: string }
+    >
+    var trayParentWindow: BrowserWindow
+    var settingsWindow: BrowserWindow | null
 }
-
-global.deviceWindows = new Map()
 
 // Initialize the Companion Satellite client and device windows
 function init() {
+    global.satelliteClient = null
+    global.deviceWindows = new Map()
+    global.keyStates = new Map()
+    global.hotkeyPromptWindow = null
+    global.hotkeyContext = null
+    global.registeredHotkeys = new Map()
+    global.settingsWindow = null
+
+    global.trayParentWindow = new BrowserWindow({
+        show: false,
+        width: 0,
+        height: 0,
+        frame: false,
+        transparent: true,
+        skipTaskbar: true,
+    })
+
     initializeDeviceIds() //ensure at least one deviceId exists
     initializeIpcHandlers() // Set up IPC handlers
     createDeviceWindows() // Create device windows
     createSatellite() // Initialize the Companion Satellite client
+    loadHotkeysFromStore() // Load hotkeys from the store
 }
 
 app.whenReady().then(() => {

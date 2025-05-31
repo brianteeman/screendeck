@@ -7,11 +7,14 @@ import { CompanionSatelliteClient } from './client' // Your new client class
 import { updateTrayMenu } from './tray'
 import { ProfilesStore, Profile } from './types' // Import your types
 import { showNotification } from './notification'
+import { unregisterAllHotkeys, loadHotkeysFromStore } from './hotkeys' // Import hotkey management functions
 
 const store = new Store({ defaults: defaultSettings })
 
 const showDevTools =
-    process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true'
+    process.env.NODE_ENV === 'development' ||
+    process.env.DEBUG_PROD === 'true' ||
+    true
 
 // Initialize the deviceIds list (runs on first app launch)
 export function initializeDeviceIds() {
@@ -42,6 +45,7 @@ export function createDeviceWindow(deviceId: string) {
     const alwaysOnTop = store.get(`device.${deviceId}.alwaysOnTop`, true)
     const movable = store.get(`device.${deviceId}.movable`, false)
     const disablePress = store.get(`device.${deviceId}.disablePress`, false)
+    const autoHide = store.get(`device.${deviceId}.autoHide`, false)
     const backgroundColor = store.get(
         `device.${deviceId}.backgroundColor`,
         '#000000'
@@ -94,7 +98,6 @@ export function createDeviceWindow(deviceId: string) {
         })
 
         win.webContents.send('disablePress', disablePress)
-        console.log('disablePress:', disablePress)
     })
 
     //show devtools
@@ -149,6 +152,12 @@ function showWindows() {
         }
     })
     console.log('All device windows shown')
+}
+
+export function showDeviceLabels(show: boolean) {
+    global.deviceWindows.forEach((win, deviceId) => {
+        win.webContents.send('showDeviceLabel', { deviceId, show })
+    })
 }
 
 export function createNewDevice(): string {
@@ -237,12 +246,38 @@ export function createSatellite() {
         /*console.log(`[Satellite] Draw event for device ${data.deviceId}`)
         console.log('[Satellite] Draw data:', data)*/
 
+        //save the image to global.keyStates
+        data.imageBase64 = data.image?.toString('base64') || undefined
+
+        //save to global.keyStates
+        if (!global.keyStates.has(data.deviceId)) {
+            global.keyStates.set(data.deviceId, new Map())
+        }
+
+        // If this key is a registered hotkey, update its bitmap reference too
+        for (const [hotkey, mapping] of global.registeredHotkeys.entries()) {
+            if (
+                mapping.deviceId === data.deviceId &&
+                mapping.keyIndex === data.keyIndex
+            ) {
+                // Update the bitmap for this hotkey (optional redundancy)
+                mapping.imageBase64 = data.imageBase64 ?? ''
+            }
+        }
+
+        const deviceKeyStates = global.keyStates.get(data.deviceId)
+        if (deviceKeyStates) {
+            deviceKeyStates.set(data.keyIndex, {
+                imageBase64: data.imageBase64,
+                color: data.color,
+                text: data.text,
+            })
+        }
+
+        // Send the draw event to the corresponding device window
         const win = global.deviceWindows.get(data.deviceId)
         if (win) {
-            win.webContents.send('draw', {
-                ...data,
-                image: data.image?.toString('base64') || undefined,
-            })
+            win.webContents.send('draw', data)
         }
     })
 
@@ -405,6 +440,9 @@ export function loadProfile(profileId: string) {
         }
     }
 
+    //unregister all hotkeys for devices
+    unregisterAllHotkeys()
+
     // Set deviceIds and restore device configs from profile
     store.set('deviceIds', profile.deviceIds)
 
@@ -435,6 +473,9 @@ export function loadProfile(profileId: string) {
     }
 
     showWindows()
+
+    //register hotkeys for the new devices
+    loadHotkeysFromStore()
 
     console.log(`Profile "${profileName}" loaded.`)
 

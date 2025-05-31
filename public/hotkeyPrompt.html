@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Assign Hotkey</title>
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';"
+        />
+        <style>
+            body {
+                font-family: sans-serif;
+                margin: 20px;
+            }
+            #keyPreview {
+                width: 72px;
+                height: 72px;
+                background: #222;
+                margin-bottom: 10px;
+            }
+            .modifiers button {
+                margin: 5px;
+            }
+            .hotkey-preview {
+                margin: 10px 0;
+                font-weight: bold;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+            th,
+            td {
+                border: 1px solid #ccc;
+                padding: 4px;
+                text-align: left;
+            }
+            .reserved-keys {
+                font-size: 0.9em;
+                color: gray;
+                margin-top: 20px;
+            }
+
+            .close-button-settings {
+                -webkit-app-region: no-drag;
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background: rgba(0, 0, 0, 0.5);
+                border: none;
+                color: white;
+                font-size: 16px;
+                padding: 2px 6px;
+                cursor: pointer;
+                z-index: 100;
+                border-radius: 4px;
+                opacity: 1;
+                transition: opacity 0.2s ease;
+            }
+        </style>
+    </head>
+    <body>
+        <button id="closeButton" class="close-button-settings">×</button>
+        <h2>Assign Hotkey</h2>
+        <div id="keyPreview"></div>
+        <div><strong>Device:</strong> <span id="deviceId"></span></div>
+        <div><strong>Key:</strong> <span id="keyIndex"></span></div>
+
+        <div class="modifiers">
+            <button data-mod="Ctrl">Ctrl</button>
+            <button data-mod="Alt">Alt</button>
+            <button data-mod="Shift">Shift</button>
+            <button data-mod="Cmd">Cmd</button>
+        </div>
+
+        <input
+            type="text"
+            id="primaryKey"
+            placeholder="Enter key (e.g., A, 1)"
+        />
+        <div class="hotkey-preview" id="hotkeyPreview"></div>
+
+        <button id="assignHotkey">Assign Hotkey</button>
+        <button id="cancel">Cancel</button>
+
+        <h3>Currently Assigned Hotkeys</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>&nbsp;</th>
+                    <th>Hotkey</th>
+                    <th>Device</th>
+                    <th>Key</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="hotkeyList"></tbody>
+        </table>
+
+        <div class="reserved-keys">
+            <h4>Common OS-Reserved Hotkeys</h4>
+            <ul>
+                <li>Cmd+Q (Quit App)</li>
+                <li>Cmd+W (Close Window)</li>
+                <li>Alt+Tab (App Switcher)</li>
+                <li>Cmd+Tab (App Switcher on Mac)</li>
+                <!-- add more -->
+            </ul>
+        </div>
+
+        <script src="hotkeyPrompt.js"></script>
+    </body>
+</html>

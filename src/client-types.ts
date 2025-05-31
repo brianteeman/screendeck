@@ -42,6 +42,7 @@ export interface SurfaceProxyDrawProps {
     deviceId: string
     keyIndex: number
     image?: Buffer
+    imageBase64?: string
     color?: string // hex
     text?: string
 }

@@ -38,6 +38,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('disablePress', (event, data) => callback(event, data))
     },
 
+    onAutoHide: (callback: any) => {
+        ipcRenderer.on('autoHide', (event, data) => callback(event, data))
+    },
+
     onIdentify: (callback: any) => ipcRenderer.on('identify', callback),
 
     // Listen for brightness changes
@@ -59,7 +63,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Get per-device config (columnCount, rowCount, etc.)
     getDeviceConfig: (deviceId: string) =>
-        ipcRenderer.invoke('get-device-config', deviceId),
+        ipcRenderer.invoke('getDeviceConfig', deviceId),
 
     // Save settings (if you need it for settings page)
     saveSettings: (newSettings: any) =>

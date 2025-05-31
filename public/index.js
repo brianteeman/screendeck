@@ -20,14 +20,20 @@ window.addEventListener('DOMContentLoaded', () => {
     let keyElements = []
     const activeKeys = new Set()
 
-    globalColumnCount = 0
+    let globalColumnCount = 0
+    let globalRowCount = 0
+    let keyStates = new Map() // deviceId -> Map(keyIndex -> { bitmap, text, color, etc. })
 
     let initialBackground = null
     let initialOpacity = null
 
+    let globalAutoHideOnLeave = false
+
     // Request config from main process
-    window.electronAPI.invoke('get-device-config', deviceId).then((config) => {
-        const { backgroundColor, backgroundOpacity } = config
+    window.electronAPI.invoke('getDeviceConfig', deviceId).then((config) => {
+        const { autoHide, backgroundColor, backgroundOpacity } = config
+
+        globalAutoHideOnLeave = autoHide
 
         const keypad = document.getElementById('keypad')
         if (keypad) {
@@ -37,9 +43,130 @@ window.addEventListener('DOMContentLoaded', () => {
             )
         }
 
+        // Handle auto hide on mouse leave
+        let hideTimeout = null
+
+        let originalBounds = null
+
+        const windowContainer = document.querySelector('.window-container')
+
+        function hideKeypad() {
+            console.log('Hiding keypad for device:', deviceId)
+            if (!globalAutoHideOnLeave) return
+
+            const keypad = document.getElementById('keypad')
+            const logo = document.getElementById('logoOverlay')
+
+            if (keypad && logo) {
+                // Fade out keypad
+                keypad.style.opacity = '0'
+                keypad.style.pointerEvents = 'none'
+
+                // Show and fade in logo
+                logo.style.display = 'flex'
+                setTimeout(() => {
+                    logo.style.opacity = '1'
+                    logo.style.transform = 'scale(1)'
+                    logo.style.backgroundColor = keypad.style.backgroundColor
+                }, 10)
+            }
+
+            // Save current size before shrinking
+            window.electronAPI
+                .invoke('getKeypadBounds', deviceId)
+                .then((bounds) => {
+                    originalBounds = bounds
+                    const bitmapSize = bounds.bitmapSize || 72
+                    window.electronAPI.invoke('resizeKeypadWindow', {
+                        deviceId,
+                        width: bitmapSize + 50, // 50px padding
+                        height: bitmapSize + 50, // 50px padding
+                    })
+                })
+        }
+
+        function showKeypad() {
+            console.log('Showing keypad for device:', deviceId)
+            if (!globalAutoHideOnLeave || !originalBounds) return
+
+            const keypad = document.getElementById('keypad')
+            const logo = document.getElementById('logoOverlay')
+
+            if (keypad && logo) {
+                // Hide logo smoothly
+                logo.style.opacity = '0'
+                logo.style.transform = 'scale(0.95)'
+
+                setTimeout(() => {
+                    logo.style.display = 'none'
+                    keypad.style.opacity = '1'
+                    keypad.style.pointerEvents = 'auto'
+                }, 300)
+            }
+
+            // Restore original size
+            window.electronAPI.invoke('resizeKeypadWindow', {
+                deviceId,
+                width: originalBounds.width,
+                height: originalBounds.height,
+            })
+        }
+
+        if (keypad) {
+            window.addEventListener('mouseleave', () => {
+                const closeButton = document.getElementById('closeButton')
+                if (closeButton) {
+                    closeButton.style.opacity = '0'
+                    closeButton.style.pointerEvents = 'none'
+                }
+
+                console.log(
+                    'Mouse left window, hiding keypad for device:',
+                    deviceId
+                )
+                if (globalAutoHideOnLeave) {
+                    hideTimeout = setTimeout(hideKeypad, 500) // small delay
+                }
+            })
+
+            window.addEventListener('mouseenter', () => {
+                const closeButton = document.getElementById('closeButton')
+                if (closeButton) {
+                    closeButton.style.opacity = '1'
+                    closeButton.style.pointerEvents = 'auto'
+                }
+
+                console.log(
+                    'Mouse entered window, showing keypad for device:',
+                    deviceId
+                )
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout)
+                    hideTimeout = null
+                }
+                if (globalAutoHideOnLeave) {
+                    showKeypad()
+                }
+            })
+
+            window.addEventListener('mousemove', (e) => {
+                const threshold = 50 // pixels
+
+                if (
+                    e.clientX < threshold ||
+                    e.clientY < threshold ||
+                    e.clientX > window.innerWidth - threshold ||
+                    e.clientY > window.innerHeight - threshold
+                ) {
+                    showKeypad()
+                }
+            })
+        }
+
         const columnCount = config.columnCount || 0
         globalColumnCount = columnCount
         const rowCount = config.rowCount || 0
+        globalRowCount = rowCount
 
         if (columnCount <= 0 || rowCount <= 0) {
             console.warn(`No keys defined for ${deviceId}. Hiding UI.`)
@@ -50,6 +177,22 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         buildKeyGrid(columnCount, rowCount)
+
+        if (!keyStates || Object.keys(keyStates).length === 0) {
+            // Show loading message
+            document.getElementById('loadingMessage').style.display = 'block'
+            //find all elements with class 'key' and hide them
+            document.querySelectorAll('.key').forEach((key) => {
+                key.style.visibility = 'hidden'
+            })
+        } else {
+            document.getElementById('loadingMessage').style.display = 'none'
+            document.getElementById('keypad').style.display = 'grid'
+            //find all elements with class 'key' and show them
+            document.querySelectorAll('.key').forEach((key) => {
+                key.style.visibility = 'visible'
+            })
+        }
     })
 
     function buildKeyGrid(columnCount, rowCount) {
@@ -64,110 +207,219 @@ window.addEventListener('DOMContentLoaded', () => {
         keysTotal = columnCount * rowCount
 
         for (let i = 0; i < keysTotal; i++) {
-            const key = document.createElement('div')
-            key.className = 'key'
-            key.dataset.index = i
+            const keyElement = document.createElement('div')
+            keyElement.className = 'key'
+            keyElement.dataset.index = i
+            keypad.appendChild(keyElement)
+            keyElements.push(keyElement)
 
-            const textSpan = document.createElement('span')
-            key.appendChild(textSpan)
-
-            key.addEventListener('mousedown', (e) => {
-                if (e.button === 2) {
-                    // Right-click: ignore
-                    return
-                }
-
-                window.electronAPI
-                    .invoke('getKeyConfig', {
-                        deviceId,
-                        keyIndex: i,
-                    })
-                    .then((keyConfig) => {
-                        const isEncoder = keyConfig.isEncoder
-                        const stepSize = keyConfig.stepSize || 10
-
-                        if (isEncoder) {
-                            e.preventDefault()
-
-                            let accumulatedDeltaX = 0
-                            let lastX = e.clientX
-
-                            const onMove = (moveEvent) => {
-                                const deltaX = moveEvent.clientX - lastX
-                                accumulatedDeltaX += deltaX
-
-                                while (
-                                    Math.abs(accumulatedDeltaX) >= stepSize
-                                ) {
-                                    const direction =
-                                        accumulatedDeltaX > 0
-                                            ? 'rotateRight'
-                                            : 'rotateLeft'
-
-                                    sendKeyPress(i, direction)
-
-                                    // Subtract the step in the direction we just sent
-                                    if (accumulatedDeltaX > 0) {
-                                        accumulatedDeltaX -= stepSize
-                                    } else {
-                                        accumulatedDeltaX += stepSize
-                                    }
-                                }
-
-                                lastX = moveEvent.clientX
-                            }
-
-                            const onUp = () => {
-                                window.removeEventListener('mousemove', onMove)
-                                window.removeEventListener('mouseup', onUp)
-                            }
-
-                            window.addEventListener('mousemove', onMove)
-                            window.addEventListener('mouseup', onUp)
-                        } else {
-                            activeKeys.add(i)
-                            sendKeyPress(i, 'down')
-                        }
-                    })
-            })
-
-            key.addEventListener('mouseup', () => {
-                activeKeys.delete(i)
-                sendKeyPress(i, 'up')
-            })
-
-            key.addEventListener(
-                'touchstart',
-                () => {
-                    activeKeys.add(i)
-                    sendKeyPress(i, 'down')
-                },
-                { passive: true }
-            )
-
-            key.addEventListener(
-                'touchend',
-                () => {
-                    activeKeys.delete(i)
-                    sendKeyPress(i, 'up')
-                },
-                { passive: true }
-            )
-
-            key.addEventListener('contextmenu', (e) => {
-                e.preventDefault()
-
-                window.electronAPI
-                    .invoke('toggleEncoder', { deviceId, keyIndex: i })
-                    .then((newIsEncoder) => {
-                        key.classList.toggle('encoder', newIsEncoder)
-                    })
-            })
-
-            keypad.appendChild(key)
-            keyElements.push(key)
+            // Build the key content and event bindings
+            refreshKey(deviceId, i)
         }
     }
+
+    let activeContextMenu = null
+
+    function showContextMenu(e, keyIndex) {
+        e.preventDefault()
+
+        // Remove existing menu if one is already open
+        if (activeContextMenu) {
+            activeContextMenu.remove()
+            activeContextMenu = null
+        }
+
+        // Create the menu
+        const menu = document.createElement('div')
+        menu.classList.add('context-menu')
+        menu.style.position = 'fixed'
+        menu.style.top = `${e.clientY}px`
+        menu.style.left = `${e.clientX}px`
+        menu.innerHTML = `
+        <div class="menu-item" data-action="encoder">Set to Encoder Mode</div>
+        <div class="menu-item" data-action="button">Set to Button Mode</div>
+        <div class="menu-item" data-action="hotkey">Assign Hotkey...</div>
+    `
+
+        document.body.appendChild(menu)
+        activeContextMenu = menu
+
+        // Handle menu item clicks
+        const handleAction = (action) => {
+            if (!action) return
+
+            if (action === 'encoder') {
+                window.electronAPI
+                    .invoke('updateKeyConfig', {
+                        deviceId,
+                        keyIndex,
+                        config: { isEncoder: true },
+                    })
+                    .then(() => refreshKey(deviceId, keyIndex))
+            } else if (action === 'button') {
+                window.electronAPI
+                    .invoke('updateKeyConfig', {
+                        deviceId,
+                        keyIndex,
+                        config: { isEncoder: false },
+                    })
+                    .then(() => refreshKey(deviceId, keyIndex))
+            } else if (action === 'hotkey') {
+                let keyConfig = keyStates.get(deviceId)?.get(keyIndex)
+                let imageBase64 = keyConfig?.imageBase64 || null
+                window.electronAPI.invoke('setHotkeyContext', {
+                    deviceId,
+                    keyIndex,
+                    imageBase64,
+                })
+                window.electronAPI.invoke('openHotkeyPrompt')
+            }
+
+            closeContextMenu()
+        }
+
+        menu.addEventListener('mousedown', (evt) => {
+            evt.stopPropagation() // Prevent click-through to document
+        })
+
+        menu.querySelectorAll('.menu-item').forEach((item) => {
+            item.addEventListener('click', (evt) => {
+                evt.stopPropagation()
+                const action = evt.target.getAttribute('data-action')
+                handleAction(action)
+            })
+        })
+
+        // Delay closing the menu to avoid accidental loss
+        setTimeout(() => {
+            document.addEventListener(
+                'mousedown',
+                function docClickOutside(e) {
+                    if (!menu.contains(e.target)) {
+                        closeContextMenu()
+                        document.removeEventListener(
+                            'mousedown',
+                            docClickOutside
+                        )
+                    }
+                },
+                { once: true }
+            )
+        }, 10)
+    }
+
+    function refreshKey(deviceId, keyIndex) {
+        window.electronAPI
+            .invoke('getKeyConfig', { deviceId, keyIndex })
+            .then((keyConfig) => {
+                const keyElement = keyElements[keyIndex]
+                if (!keyElement) return
+
+                // Update encoder class
+                if (keyConfig.isEncoder) {
+                    keyElement.classList.add('encoder')
+                } else {
+                    keyElement.classList.remove('encoder')
+                }
+
+                // Rebind mousedown event
+                keyElement.replaceWith(keyElement.cloneNode(true))
+                const newKeyElement = document.querySelector(
+                    `[data-index="${keyIndex}"]`
+                )
+                keyElements[keyIndex] = newKeyElement
+                bindKeyEvents(newKeyElement, keyIndex, keyConfig)
+
+                const state = keyStates.get(deviceId)?.get(keyIndex)
+                if (state) {
+                    processKey(state)
+                }
+            })
+    }
+
+    function bindKeyEvents(key, i, keyConfig) {
+        key.addEventListener('mousedown', (e) => {
+            console.log('in mouse down for key:', i)
+            if (e.button === 2) {
+                return
+            }
+
+            const isEncoder = keyConfig.isEncoder
+            const stepSize = keyConfig.stepSize || 10
+
+            console.log('isEncoder:', isEncoder, 'stepSize:', stepSize)
+
+            if (isEncoder) {
+                e.preventDefault()
+
+                let accumulatedDeltaX = 0
+                let lastX = e.clientX
+
+                const onMove = (moveEvent) => {
+                    const deltaX = moveEvent.clientX - lastX
+                    accumulatedDeltaX += deltaX
+
+                    let direction = null
+                    while (Math.abs(accumulatedDeltaX) >= stepSize) {
+                        direction =
+                            accumulatedDeltaX > 0 ? 'rotateRight' : 'rotateLeft'
+                        sendKeyPress(i, direction)
+
+                        if (accumulatedDeltaX > 0) {
+                            accumulatedDeltaX -= stepSize
+                        } else {
+                            accumulatedDeltaX += stepSize
+                        }
+                    }
+
+                    if (direction) {
+                        key.classList.add(direction)
+                        key.classList.remove(
+                            direction === 'rotateRight'
+                                ? 'rotateLeft'
+                                : 'rotateRight'
+                        )
+                    }
+
+                    lastX = moveEvent.clientX
+                }
+
+                const onUp = () => {
+                    window.removeEventListener('mousemove', onMove)
+                    window.removeEventListener('mouseup', onUp)
+                    key.classList.remove('rotateLeft', 'rotateRight')
+                }
+
+                window.addEventListener('mousemove', onMove)
+                window.addEventListener('mouseup', onUp)
+            } else {
+                activeKeys.add(i)
+                sendKeyPress(i, 'down')
+            }
+        })
+
+        key.addEventListener('mouseup', () => {
+            activeKeys.delete(i)
+            sendKeyPress(i, 'up')
+        })
+
+        // Add context menu again
+        key.addEventListener('contextmenu', (e) => showContextMenu(e, i))
+    }
+
+    function closeContextMenu() {
+        if (activeContextMenu) {
+            activeContextMenu.remove()
+            activeContextMenu = null
+        }
+    }
+
+    // Global listener to close the menu when clicking anywhere else
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.context-menu')) {
+            closeContextMenu()
+        }
+    })
 
     function sendKeyPress(keyIndex, action) {
         const x = keyIndex % globalColumnCount
@@ -203,6 +455,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     })
 
+    window.electronAPI.onAutoHide((_, autoHide) => {
+        globalAutoHideOnLeave = autoHide
+    })
+
     window.electronAPI.onIdentify(() => {
         const keypad = document.getElementById('keypad')
         if (!keypad) return
@@ -214,7 +470,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         setTimeout(() => {
             window.electronAPI
-                .invoke('get-device-config', deviceId)
+                .invoke('getDeviceConfig', deviceId)
                 .then((config) => {
                     console.log('got config:', config)
                     const { backgroundColor, backgroundOpacity } = config
@@ -247,6 +503,12 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handle key events from Companion
     window.electronAPI.onDraw((event, keyObj) => {
         if (keyObj.deviceId !== deviceId) return
+
+        if (!keyStates.has(keyObj.deviceId)) {
+            keyStates.set(keyObj.deviceId, new Map())
+        }
+
+        keyStates.get(keyObj.deviceId).set(keyObj.keyIndex, keyObj)
         processKey(keyObj)
     })
 
@@ -261,10 +523,17 @@ window.addEventListener('DOMContentLoaded', () => {
     })
 
     function processKey(keyObj) {
+        document.getElementById('loadingMessage').style.display = 'none'
+        document.getElementById('keypad').style.display = 'grid'
+        //find all elements with class 'key' and show them
+        document.querySelectorAll('.key').forEach((key) => {
+            key.style.visibility = 'visible'
+        })
+
         console.log('Processing key:', keyObj)
 
         const keyIndex = keyObj.keyIndex
-        const bitmap = keyObj.image
+        const bitmap = keyObj.imageBase64
         const { color, textColor, text, fontSize } = keyObj
 
         if (keyIndex < 0 || keyIndex >= keyElements.length) {
@@ -331,26 +600,36 @@ window.addEventListener('DOMContentLoaded', () => {
         keypad.style.opacity = brightness / 100
     }
 
-    // Bitmap Rendering
-    function renderBitmap(container, bitmap) {
+    // Bitmap Rendering: Accepts base64-encoded raw RGB bitmap
+    function renderBitmap(container, bitmapBase64) {
         requestAnimationFrame(() => {
-            const canvas =
-                container.querySelector('canvas') ||
-                document.createElement('canvas')
-            const ctx = canvas.getContext('2d')
-
             try {
-                const binary = atob(bitmap)
+                const binary = atob(bitmapBase64)
                 const bytes = new Uint8Array(binary.length)
                 for (let i = 0; i < binary.length; i++) {
                     bytes[i] = binary.charCodeAt(i)
                 }
 
                 const size = Math.sqrt(bytes.length / 3)
+                if (!Number.isInteger(size)) {
+                    console.warn(
+                        'Bitmap data length does not result in a perfect square.'
+                    )
+                    return
+                }
+
+                let canvas = container.querySelector('canvas')
+                if (!canvas) {
+                    canvas = document.createElement('canvas')
+                    container.innerHTML = ''
+                    container.appendChild(canvas)
+                }
+
                 canvas.width = size
                 canvas.height = size
-
+                const ctx = canvas.getContext('2d')
                 const imageData = ctx.createImageData(size, size)
+
                 for (let i = 0, j = 0; i < bytes.length; i += 3, j += 4) {
                     imageData.data[j] = bytes[i]
                     imageData.data[j + 1] = bytes[i + 1]
@@ -359,10 +638,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
 
                 ctx.putImageData(imageData, 0, 0)
-                if (!container.contains(canvas)) {
-                    container.innerHTML = ''
-                    container.appendChild(canvas)
-                }
+
+                // Optional: Convert the canvas into a PNG base64 (for other uses)
+                // const dataUrl = canvas.toDataURL('image/png')
             } catch (err) {
                 console.error('Error decoding bitmap:', err)
             }

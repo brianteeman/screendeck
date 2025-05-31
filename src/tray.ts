@@ -10,6 +10,8 @@ import {
 } from './utils' // Import profile management functions
 import { ProfilesStore } from './types' // Import the ProfilesStore type
 
+import { unregisterAllHotkeys } from './hotkeys' // Import hotkey management functions
+
 let tray: Tray | null = null
 const store = new Store()
 
@@ -170,6 +172,8 @@ function updateTrayMenu() {
                 global.deviceWindows?.forEach((win) => {
                     win.close()
                 })
+
+                unregisterAllHotkeys()
 
                 // Destroy the tray
                 if (tray) {

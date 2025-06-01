@@ -59,6 +59,33 @@ function updateTrayMenu() {
             enabled: false,
         },
         { type: 'separator' },
+        {
+            label: `Hide All Screen Decks`,
+            type: 'normal',
+            click: () => {
+                global.deviceWindows.forEach((win) => {
+                    if (win.isVisible()) {
+                        win.hide()
+                        store.set(`device.${win.webContents.id}.hidden`, true)
+                    }
+                })
+                updateTrayMenu()
+            }
+        },
+        {
+            label: `Show All Screen Decks`,
+            type: 'normal',
+            click: () => {
+                global.deviceWindows.forEach((win) => {
+                    if (!win.isVisible()) {
+                        win.show()
+                        store.set(`device.${win.webContents.id}.hidden`, false)
+                    }
+                })
+                updateTrayMenu()
+            }
+        },
+        { type: 'separator' },
     ] as Electron.MenuItemConstructorOptions[]
 
     const devices = store.get('deviceIds') as string[]

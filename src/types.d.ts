@@ -21,6 +21,7 @@ export interface DeviceConfig {
     movable: boolean
     disablePress: boolean
     autoHide: boolean
+    hideEmptyKeys: boolean
     bounds?: Electron.Rectangle | null
 }
 

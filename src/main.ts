@@ -3,11 +3,9 @@ import type { CompanionSatelliteClient } from './client' // Your new client clas
 import { initializeIpcHandlers } from './ipcHandlers' // Import IPC handlers
 import createTray from './tray' // Import the tray creation function
 
-import {
-    initializeDeviceIds,
-    createDeviceWindows,
-    createSatellite,
-} from './utils' // Import utility functions
+import { initializeDeviceIds, createSatellite } from './utils' // Import utility functions
+
+import { createDeviceWindows } from './device' // Import device window creation
 
 import { loadHotkeysFromStore } from './hotkeys'
 

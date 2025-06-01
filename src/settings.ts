@@ -3,10 +3,9 @@ import * as path from 'path'
 
 let settingsWindow: BrowserWindow | null = null
 
-import { showDeviceLabels } from './utils' // Import the function to show/hide device labels
+import { showDeviceLabels } from './device' // Import the function to show/hide device labels
 
-const showDevTools =
-    process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true'
+import { showDevTools } from './utils' // Import the utility to check if dev tools should be shown
 
 export default function createSettingsWindow() {
     if (settingsWindow) {
@@ -22,14 +21,10 @@ export default function createSettingsWindow() {
     }
 
     settingsWindow = new BrowserWindow({
-        width: 450,
+        width: 500,
         height: 600,
-        modal: true,
-        parent: global.trayParentWindow,
-        resizable: false,
         alwaysOnTop: true,
-        minimizable: false,
-        maximizable: false,
+        resizable: false,
         title: 'Settings',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),

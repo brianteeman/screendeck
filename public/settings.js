@@ -55,7 +55,19 @@ window.addEventListener('DOMContentLoaded', () => {
             idLabel.textContent = device.deviceId
             container.appendChild(idLabel)
 
-            // Editable fields
+            // === Left side fields ===
+            const leftFields = document.createElement('div')
+            leftFields.style.display = 'flex'
+            leftFields.style.flexDirection = 'column'
+            leftFields.style.gap = '4px'
+            leftFields.style.marginRight = '20px'
+
+            // === Right side fields ===
+            const rightFields = document.createElement('div')
+            rightFields.style.display = 'flex'
+            rightFields.style.flexDirection = 'column'
+            rightFields.style.gap = '4px'
+
             const columnCountInput = createInput('Columns', device.columnCount)
             const rowCountInput = createInput('Rows', device.rowCount)
             const bitmapSizeInput = createInput('Bitmap', device.bitmapSize)
@@ -71,6 +83,10 @@ window.addEventListener('DOMContentLoaded', () => {
             const autoHideInput = createCheckbox(
                 'Auto Hide on Mouse Leave',
                 device.autoHide || false
+            )
+            const hideEmptyKeysInput = createCheckbox(
+                'Hide Empty Keys',
+                device.hideEmptyKeys || false
             )
 
             // Create color picker
@@ -113,23 +129,35 @@ window.addEventListener('DOMContentLoaded', () => {
 
             container.appendChild(document.createElement('hr'))
 
-            const inputs = [
-                columnCountInput,
-                rowCountInput,
-                bitmapSizeInput,
+            // Append to leftFields
+            ;[columnCountInput, rowCountInput, bitmapSizeInput].forEach(
+                (inputObj) => {
+                    leftFields.appendChild(inputObj.label)
+                    leftFields.appendChild(inputObj.input)
+                }
+            )
+            leftFields.appendChild(backgroundColorLabel)
+            leftFields.appendChild(backgroundOpacityLabel)
+            ;[
                 alwaysOnTopInput,
                 movableInput,
                 disablePressInput,
-                autoHideInput,
-            ]
-
-            inputs.forEach((inputObj) => {
-                container.appendChild(inputObj.label)
-                container.appendChild(inputObj.input)
+                //autoHideInput,
+                //hideEmptyKeysInput,
+            ].forEach((inputObj) => {
+                rightFields.appendChild(inputObj.label)
+                rightFields.appendChild(inputObj.input)
             })
+            // === Add fields to a row container ===
+            const fieldsContainer = document.createElement('div')
+            fieldsContainer.style.display = 'flex'
+            fieldsContainer.style.justifyContent = 'space-between'
+            fieldsContainer.style.alignItems = 'flex-start'
+            fieldsContainer.appendChild(leftFields)
+            fieldsContainer.appendChild(rightFields)
 
-            container.appendChild(backgroundColorLabel)
-            container.appendChild(backgroundOpacityLabel)
+            container.appendChild(fieldsContainer)
+            container.appendChild(document.createElement('hr'))
 
             // Save & Delete buttons
             const actions = document.createElement('div')
@@ -145,7 +173,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     alwaysOnTop: alwaysOnTopInput.input.checked,
                     movable: movableInput.input.checked,
                     disablePress: disablePressInput.input.checked,
-                    autoHide: autoHideInput.input.checked,
+                    //autoHide: autoHideInput.input.checked,
+                    //hideEmptyKeys: hideEmptyKeysInput.input.checked,
                     backgroundColor: backgroundColorInput.value,
                     backgroundOpacity: parseFloat(backgroundOpacityInput.value),
                 }
@@ -198,12 +227,22 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function createCheckbox(labelText, checked) {
-        const label = document.createElement('label')
-        label.textContent = labelText + ': '
+        const container = document.createElement('label')
+        container.style.display = 'flex'
+        container.style.alignItems = 'center'
+        container.style.gap = '4px'
+
         const input = document.createElement('input')
         input.type = 'checkbox'
         input.checked = checked
-        return { label, input }
+
+        const label = document.createElement('span')
+        label.textContent = labelText
+
+        container.appendChild(input)
+        container.appendChild(label)
+
+        return { label: container, input }
     }
 
     function createInput(labelText, value) {

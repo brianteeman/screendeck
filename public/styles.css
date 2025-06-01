@@ -340,13 +340,6 @@ input[type='color'] {
     animation: pulse 1.5s infinite ease-in-out;
 }
 
-#loadingMessage p {
-    margin-top: 10px;
-    font-size: 1.2em;
-    color: #ccc;
-    animation: fadeInOut 1.5s infinite ease-in-out;
-}
-
 @keyframes pulse {
     0%,
     100% {

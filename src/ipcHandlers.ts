@@ -2,15 +2,17 @@ import { ipcMain, BrowserWindow } from 'electron'
 import * as path from 'path'
 import Store from 'electron-store'
 import { defaultSettings } from './defaults'
+import { createSatellite, getNextProfileName } from './utils'
+import { updateTrayMenu } from './tray'
+
+import { registerHotkey, unregisterHotkey } from './hotkeys' // Import the hotkey registration function
 import {
     createNewDevice,
     createDeviceWindow,
-    createSatellite,
     calculateWindowSize,
-} from './utils' // Import your window creation function
-import { updateTrayMenu } from './tray'
-import { getNextProfileName, showDeviceLabels } from './utils' // Import the profile management function
-import { registerHotkey, unregisterHotkey } from './hotkeys' // Import the hotkey registration function
+    showDeviceLabels,
+    resizeWindowForDevice,
+} from './device' // Import the device ID creation function
 
 const store = new Store({ defaults: defaultSettings })
 
@@ -303,6 +305,7 @@ export function initializeIpcHandlers() {
             movable: store.get(`device.${id}.movable`, true),
             disablePress: store.get(`device.${id}.disablePress`, false),
             autoHide: store.get(`device.${id}.autoHide`, false),
+            hideEmptyKeys: store.get(`device.${id}.hideEmptyKeys`, false),
             backgroundColor: store.get(
                 `device.${id}.backgroundColor`,
                 '#000000'
@@ -327,7 +330,13 @@ export function initializeIpcHandlers() {
 
         // Save all config values
         Object.entries(config).forEach(([key, value]) => {
-            store.set(`device.${deviceId}.${key}`, value)
+            const fullKey = `device.${deviceId}.${key}`
+
+            if (value === undefined) {
+                store.delete(fullKey as any)
+            } else {
+                store.set(fullKey, value)
+            }
         })
 
         console.log(`Device ${deviceId} config updated:`, config)
@@ -349,6 +358,13 @@ export function initializeIpcHandlers() {
             }
             if (config.autoHide !== undefined) {
                 win.webContents.send('autoHide', Boolean(config.autoHide))
+            }
+            if (config.hideEmptyKeys !== undefined) {
+                //resizeWindowForDevice(deviceId)
+                win.webContents.send(
+                    'hideEmptyKeys',
+                    Boolean(config.hideEmptyKeys)
+                )
             }
 
             // Resize window if columnCount/rowCount/bitmapSize changed

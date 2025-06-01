@@ -28,12 +28,15 @@ window.addEventListener('DOMContentLoaded', () => {
     let initialOpacity = null
 
     let globalAutoHideOnLeave = false
+    let globalHideEmptyKeys = false
 
     // Request config from main process
     window.electronAPI.invoke('getDeviceConfig', deviceId).then((config) => {
-        const { autoHide, backgroundColor, backgroundOpacity } = config
+        const { autoHide, hideEmptyKeys, backgroundColor, backgroundOpacity } =
+            config
 
-        globalAutoHideOnLeave = autoHide
+        globalAutoHideOnLeave = autoHide || false
+        globalHideEmptyKeys = hideEmptyKeys || false
 
         const keypad = document.getElementById('keypad')
         if (keypad) {
@@ -177,13 +180,44 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         buildKeyGrid(columnCount, rowCount)
+    })
 
-        if (!keyStates || Object.keys(keyStates).length === 0) {
+    function buildKeyGrid(columnCount, rowCount) {
+        const keypad = document.getElementById('keypad')
+        globalColumnCount = columnCount
+        globalRowCount = rowCount
+        keysTotal = columnCount * rowCount
+
+        keypad.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`
+
+        // Remove existing keys
+        keypad.querySelectorAll('.key').forEach((key) => key.remove())
+        keyElements = []
+
+        for (let i = 0; i < keysTotal; i++) {
+            const keyElement = document.createElement('div')
+            keyElement.className = 'key'
+            keyElement.dataset.index = i
+            //keyElement.style.display = 'flex'
+            keypad.appendChild(keyElement)
+            keyElements.push(keyElement)
+
+            refreshKey(deviceId, i)
+        }
+
+        //checkKeyStates()
+
+        //updateGridLayout() // Initial layout calc after grid build
+    }
+
+    function checkKeyStates() {
+        if (!keyStates || keyStates.size === 0) {
+            console.log('No key states found for device:', deviceId)
             // Show loading message
-            document.getElementById('loadingMessage').style.display = 'block'
+            //document.getElementById('loadingMessage').style.display = 'block'
             //find all elements with class 'key' and hide them
             document.querySelectorAll('.key').forEach((key) => {
-                key.style.visibility = 'hidden'
+                //key.style.visibility = 'hidden'
             })
         } else {
             document.getElementById('loadingMessage').style.display = 'none'
@@ -193,29 +227,43 @@ window.addEventListener('DOMContentLoaded', () => {
                 key.style.visibility = 'visible'
             })
         }
-    })
+    }
 
-    function buildKeyGrid(columnCount, rowCount) {
+    let currentMaxColumns = 0
+    let currentMaxRows = 0
+
+    function updateGridLayout() {
         const keypad = document.getElementById('keypad')
-        keypad.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`
-
-        // Remove only existing keys
-        keypad.querySelectorAll('.key').forEach((key) => key.remove())
-
-        keyElements = []
-
-        keysTotal = columnCount * rowCount
-
-        for (let i = 0; i < keysTotal; i++) {
-            const keyElement = document.createElement('div')
-            keyElement.className = 'key'
-            keyElement.dataset.index = i
-            keypad.appendChild(keyElement)
-            keyElements.push(keyElement)
-
-            // Build the key content and event bindings
-            refreshKey(deviceId, i)
+        if (!globalHideEmptyKeys) {
+            keypad.style.gridTemplateColumns = `repeat(${globalColumnCount}, 1fr)`
+            currentMaxColumns = globalColumnCount
+            currentMaxRows = globalRowCount
+            return
         }
+
+        let maxCols = 0
+        let maxRow = 0
+        for (let row = 0; row < globalRowCount; row++) {
+            let rowHasContent = false
+            let rowCols = 0
+            for (let col = 0; col < globalColumnCount; col++) {
+                const index = row * globalColumnCount + col
+                const keyEl = keyElements[index]
+                if (keyEl && keyEl.style.display !== 'none') {
+                    rowHasContent = true
+                    rowCols++
+                }
+            }
+            if (rowHasContent) {
+                maxRow++
+                if (rowCols > maxCols) maxCols = rowCols
+            }
+        }
+
+        currentMaxColumns = maxCols || 1
+        currentMaxRows = maxRow || 1
+
+        keypad.style.gridTemplateColumns = `repeat(${currentMaxColumns}, 1fr)`
     }
 
     let activeContextMenu = null
@@ -233,16 +281,40 @@ window.addEventListener('DOMContentLoaded', () => {
         const menu = document.createElement('div')
         menu.classList.add('context-menu')
         menu.style.position = 'fixed'
-        menu.style.top = `${e.clientY}px`
-        menu.style.left = `${e.clientX}px`
         menu.innerHTML = `
-        <div class="menu-item" data-action="encoder">Set to Encoder Mode</div>
-        <div class="menu-item" data-action="button">Set to Button Mode</div>
-        <div class="menu-item" data-action="hotkey">Assign Hotkey...</div>
+    <div class="menu-item" data-action="encoder">Set to Encoder Mode</div>
+    <div class="menu-item" data-action="button">Set to Button Mode</div>
+    <div class="menu-item" data-action="hotkey">Assign Hotkey...</div>
     `
 
         document.body.appendChild(menu)
         activeContextMenu = menu
+
+        // Calculate position to keep it on-screen
+        const padding = 10 // px from edges
+        const menuRect = menu.getBoundingClientRect() // Get default size
+
+        let top = e.clientY
+        let left = e.clientX
+
+        // Adjust vertical position if too low
+        if (top + menuRect.height > window.innerHeight - padding) {
+            top = window.innerHeight - menuRect.height - padding
+        }
+        if (top < padding) {
+            top = padding
+        }
+
+        // Adjust horizontal position if too far right
+        if (left + menuRect.width > window.innerWidth - padding) {
+            left = window.innerWidth - menuRect.width - padding
+        }
+        if (left < padding) {
+            left = padding
+        }
+
+        menu.style.top = `${top}px`
+        menu.style.left = `${left}px`
 
         // Handle menu item clicks
         const handleAction = (action) => {
@@ -459,6 +531,11 @@ window.addEventListener('DOMContentLoaded', () => {
         globalAutoHideOnLeave = autoHide
     })
 
+    window.electronAPI.onHideEmptyKeys((_, hideEmptyKeys) => {
+        globalHideEmptyKeys = hideEmptyKeys
+        //logic to hide empty keys
+    })
+
     window.electronAPI.onIdentify(() => {
         const keypad = document.getElementById('keypad')
         if (!keypad) return
@@ -523,14 +600,10 @@ window.addEventListener('DOMContentLoaded', () => {
     })
 
     function processKey(keyObj) {
+        console.log('Processing key:', keyObj)
+
         document.getElementById('loadingMessage').style.display = 'none'
         document.getElementById('keypad').style.display = 'grid'
-        //find all elements with class 'key' and show them
-        document.querySelectorAll('.key').forEach((key) => {
-            key.style.visibility = 'visible'
-        })
-
-        console.log('Processing key:', keyObj)
 
         const keyIndex = keyObj.keyIndex
         const bitmap = keyObj.imageBase64
@@ -553,6 +626,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const textSpan = keyElement.querySelector('span')
+        let isEmpty = !bitmap && !color && !text
+
+        if (globalHideEmptyKeys) {
+            if (keyObj.imageBase64 || keyObj.text || keyObj.color) {
+                keyElement.style.display = 'flex'
+            } else {
+                keyElement.style.display = 'none'
+            }
+        } else {
+            keyElement.style.display = 'flex'
+        }
 
         // If Companion sends a bitmap, render it
         if (bitmap) {
@@ -564,7 +648,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (color) {
             keyElement.style.backgroundColor = color
         } else {
-            // Clear color if not provided
             keyElement.style.backgroundColor = ''
         }
 
@@ -580,18 +663,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 textSpan.textContent = ''
             }
 
-            if (textColor) {
-                textSpan.style.color = textColor
-            } else {
-                textSpan.style.color = ''
-            }
-
-            if (fontSize) {
-                textSpan.style.fontSize = fontSize
-            } else {
-                textSpan.style.fontSize = ''
-            }
+            textSpan.style.color = textColor || ''
+            textSpan.style.fontSize = fontSize || ''
         }
+
+        //checkKeyStates()
+        //updateGridLayout()
     }
 
     // Brightness

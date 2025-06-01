@@ -42,6 +42,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('autoHide', (event, data) => callback(event, data))
     },
 
+    onHideEmptyKeys: (callback: any) => {
+        ipcRenderer.on('hideEmptyKeys', (event, data) => callback(event, data))
+    },
+
     onIdentify: (callback: any) => ipcRenderer.on('identify', callback),
 
     // Listen for brightness changes

@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import Store from 'electron-store'
 import ShortUniqueId from 'short-uuid'
 import { defaultSettings } from './defaults' // Your settings file
 import path from 'path'
+import { createNewDevice, createDeviceWindows, showWindows } from './device' // Function to create a new device
 import { CompanionSatelliteClient } from './client' // Your new client class
 import { updateTrayMenu } from './tray'
 import { ProfilesStore, Profile } from './types' // Import your types
@@ -11,10 +12,8 @@ import { unregisterAllHotkeys, loadHotkeysFromStore } from './hotkeys' // Import
 
 const store = new Store({ defaults: defaultSettings })
 
-const showDevTools =
-    process.env.NODE_ENV === 'development' ||
-    process.env.DEBUG_PROD === 'true' ||
-    true
+export const showDevTools =
+    process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true'
 
 // Initialize the deviceIds list (runs on first app launch)
 export function initializeDeviceIds() {
@@ -24,180 +23,6 @@ export function initializeDeviceIds() {
         const newDeviceId = createNewDevice()
         store.set('deviceIds', [newDeviceId])
     }
-}
-
-export function createDeviceWindows() {
-    const deviceIds = store.get('deviceIds') as string[] | undefined
-    // Create windows for each device
-    deviceIds?.forEach((deviceId) => {
-        createDeviceWindow(deviceId)
-    })
-}
-
-// Create a window for each device
-export function createDeviceWindow(deviceId: string) {
-    console.log(`Creating window for deviceId: ${deviceId}`)
-
-    //get properties by deviceId
-    const columnCount = store.get(`device.${deviceId}.columnCount`, 8)
-    const rowCount = store.get(`device.${deviceId}.rowCount`, 4)
-    const bitmapSize = store.get(`device.${deviceId}.bitmapSize`, 72)
-    const alwaysOnTop = store.get(`device.${deviceId}.alwaysOnTop`, true)
-    const movable = store.get(`device.${deviceId}.movable`, false)
-    const disablePress = store.get(`device.${deviceId}.disablePress`, false)
-    const autoHide = store.get(`device.${deviceId}.autoHide`, false)
-    const backgroundColor = store.get(
-        `device.${deviceId}.backgroundColor`,
-        '#000000'
-    )
-    const backgroundOpacity = store.get(
-        `device.${deviceId}.backgroundOpacity`,
-        0.5
-    )
-
-    const { width, height } = calculateWindowSize(
-        columnCount,
-        rowCount,
-        bitmapSize
-    )
-    const primaryDisplay = screen.getPrimaryDisplay()
-    const { width: screenWidth } = primaryDisplay.workAreaSize
-
-    // Restore position from store or use defaults
-    const x = store.get(`device.${deviceId}.x`, screenWidth - width - 20)
-    const y = store.get(`device.${deviceId}.y`, 20)
-
-    const win = new BrowserWindow({
-        width: width,
-        height: height,
-        x: x,
-        y: y,
-        transparent: true,
-        frame: false,
-        alwaysOnTop: alwaysOnTop,
-        resizable: false,
-        skipTaskbar: true,
-        movable: movable,
-        hasShadow: false,
-        title: `ScreenDeck - ${deviceId}`,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true, // Enable context isolation for security
-            nodeIntegration: false, // Disable nodeIntegration for security
-        },
-    })
-
-    win.loadFile(path.join(__dirname, '../public/index.html'), {
-        query: { deviceId },
-    })
-
-    win.webContents.on('did-finish-load', () => {
-        win.webContents.send('updateBackground', {
-            backgroundColor,
-            backgroundOpacity,
-        })
-
-        win.webContents.send('disablePress', disablePress)
-    })
-
-    //show devtools
-    if (showDevTools) {
-        win.webContents.openDevTools({
-            mode: 'detach', // Open in a separate window
-        })
-    }
-
-    //hide the window initially
-    win.hide()
-
-    // Handle window events
-    win.on('focus', () => {
-        win.webContents.send('windowFocused', { deviceId })
-    })
-    win.on('blur', () => {
-        win.webContents.send('windowBlurred', { deviceId })
-    })
-    win.on('close', (event) => {
-        event.preventDefault() // Prevent default close behavior
-        win.hide() // Hide the window instead of closing it
-        win.webContents.send('windowClosed', { deviceId })
-    })
-    win.on('show', () => {
-        win.webContents.send('windowShown', { deviceId })
-    })
-    win.on('hide', () => {
-        win.webContents.send('windowHidden', { deviceId })
-    })
-
-    win.on('move', () => {
-        const { x, y } = win.getBounds()
-        store.set(`device.${deviceId}.x`, x)
-        store.set(`device.${deviceId}.y`, y)
-    })
-
-    global.deviceWindows.set(deviceId, win)
-}
-
-function showWindows() {
-    // Show all device windows
-    global.deviceWindows.forEach((win, deviceId) => {
-        console.log(`Showing window for deviceId: ${deviceId}`)
-        const hidden = store.get(`device.${deviceId}.hidden`, false)
-        if (!hidden) {
-            win.show()
-            win.focus()
-            win.webContents.send('windowShown', { deviceId })
-        } else {
-            win.hide()
-        }
-    })
-    console.log('All device windows shown')
-}
-
-export function showDeviceLabels(show: boolean) {
-    global.deviceWindows.forEach((win, deviceId) => {
-        win.webContents.send('showDeviceLabel', { deviceId, show })
-    })
-}
-
-export function createNewDevice(): string {
-    const newDeviceId = generateDeviceId()
-
-    // Also store default per-device settings
-    store.set(`device.${newDeviceId}.columnCount`, 8) // Default 8x4 layout
-    store.set(`device.${newDeviceId}.rowCount`, 4) // Default 8x4 layout
-    store.set(`device.${newDeviceId}.bitmapSize`, 72) // Default bitmap size
-    store.set(`device.${newDeviceId}.alwaysOnTop`, true) // Default to true
-    store.set(`device.${newDeviceId}.movable`, true) // Default to true
-    store.set(`device.${newDeviceId}.disablePress`, false) // Default to false
-    store.set(`device.${newDeviceId}.backgroundColor`, '#000000') // Default black
-    store.set(`device.${newDeviceId}.backgroundOpacity`, 0.5) // Default semi-transparent
-
-    console.log(`Generated new deviceId: ${newDeviceId}`)
-
-    return newDeviceId
-}
-
-// Generate a new unique deviceId
-function generateDeviceId(): string {
-    const uuidGenerator = ShortUniqueId()
-    return `screendeck-${uuidGenerator.new()}`
-}
-
-export function calculateWindowSize(
-    columnCount: number,
-    rowCount: number,
-    bitmapSize: number
-) {
-    const KEY_WIDTH = bitmapSize
-    const KEY_HEIGHT = bitmapSize
-    const PADDING = 20
-    const GAP = 10
-    const rows = rowCount
-    const width =
-        columnCount * KEY_WIDTH + (columnCount - 1) * GAP + PADDING * 2
-    const height = rows * KEY_HEIGHT + (rows - 1) * GAP + PADDING * 2
-    return { width, height }
 }
 
 // ===========================
@@ -243,8 +68,8 @@ export function createSatellite() {
     })
 
     global.satelliteClient.on('draw', (data) => {
-        /*console.log(`[Satellite] Draw event for device ${data.deviceId}`)
-        console.log('[Satellite] Draw data:', data)*/
+        console.log(`[Satellite] Draw event for device ${data.deviceId}`)
+        console.log('[Satellite] Draw data:', data)
 
         //save the image to global.keyStates
         data.imageBase64 = data.image?.toString('base64') || undefined
@@ -277,6 +102,7 @@ export function createSatellite() {
         // Send the draw event to the corresponding device window
         const win = global.deviceWindows.get(data.deviceId)
         if (win) {
+            //resizeWindowForDevice(data.deviceId)
             win.webContents.send('draw', data)
         }
     })
@@ -455,6 +281,11 @@ export function loadProfile(profileId: string) {
         }
     }
 
+    //restart the app
+    app.relaunch()
+    app.exit(0)
+
+    /*
     // Recreate device windows
     createDeviceWindows()
     const deviceIds = store.get('deviceIds', []) as string[]
@@ -486,7 +317,7 @@ export function loadProfile(profileId: string) {
 
     store.set('currentProfile', profileId)
 
-    updateTrayMenu()
+    updateTrayMenu()*/
 }
 
 export function deleteProfile(profileId: string) {

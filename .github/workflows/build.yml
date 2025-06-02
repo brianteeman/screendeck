@@ -74,6 +74,7 @@ jobs:
 
             - name: Build Electron App for ARM64
               run: |
+                  yarn build
                   yarn run electron-builder --linux --arm64
 
             - name: Rename RPi Artifact

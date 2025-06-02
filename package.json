@@ -10,7 +10,12 @@
         "dev": "concurrently \"tsc -w\" \"wait-on dist/main.js && electron .\"",
         "format": "prettier -w .",
         "lint:raw": "eslint --ext .ts --ext .js --ignore-pattern dist --ignore-pattern pkg",
-        "lint": "yarn lint:raw ."
+        "lint": "yarn lint:raw .",
+        "test:build": "yarn build && yarn electron-builder --dir --config",
+        "build:mac": "yarn build && electron-builder --mac",
+        "build:win": "yarn build && electron-builder --win",
+        "build:linux": "yarn build && electron-builder --linux",
+        "build:arm64": "yarn build && electron-builder --linux --arm64"
     },
     "build": {
         "appId": "com.josephadams.screendeck",

@@ -1,6 +1,6 @@
 // src/types.d.ts
 
-declare var global: any;
+declare var global: any
 
 // Define the KeyObj type
 export type KeyObj = {

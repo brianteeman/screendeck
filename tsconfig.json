@@ -8,8 +8,7 @@
         "forceConsistentCasingInFileNames": true,
         "outDir": "dist",
         "rootDir": "src",
-        "moduleResolution": "node",
-        "types": ["node", "electron"]
+        "moduleResolution": "node"
     },
     "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

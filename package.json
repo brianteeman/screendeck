@@ -75,9 +75,10 @@
     },
     "devDependencies": {
         "@electron/notarize": "^2.5.0",
-        "@types/node": "^18.0.0",
-        "@types/semver": "^7",
-        "@types/ws": "^8",
+        "@types/electron": "^1.6.12",
+        "@types/node": "^22.15.29",
+        "@types/semver": "^7.7.0",
+        "@types/ws": "^8.18.1",
         "concurrently": "^8.0.0",
         "electron": "^33.2.1",
         "electron-builder": "^25.1.8",

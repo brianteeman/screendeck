@@ -70,7 +70,7 @@ function updateTrayMenu() {
                     }
                 })
                 updateTrayMenu()
-            }
+            },
         },
         {
             label: `Show All Screen Decks`,
@@ -83,7 +83,7 @@ function updateTrayMenu() {
                     }
                 })
                 updateTrayMenu()
-            }
+            },
         },
         { type: 'separator' },
     ] as Electron.MenuItemConstructorOptions[]

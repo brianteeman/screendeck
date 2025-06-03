@@ -24,7 +24,7 @@ jobs:
                   node-version: 20
 
             - name: Install dependencies
-              run: yarn install --production
+              run: yarn install
 
             - name: Build App (typescript)
               run: yarn build

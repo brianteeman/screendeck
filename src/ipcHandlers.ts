@@ -25,6 +25,7 @@ export function initializeIpcHandlers() {
         const movable = store.get(`device.${deviceId}.movable`, true)
         const disablePress = store.get(`device.${deviceId}.disablePress`, false)
         const autoHide = store.get(`device.${deviceId}.autoHide`, false)
+        const hideEmptyKeys = store.get(`device.${deviceId}.hideEmptyKeys`, false)
         const backgroundColor = store.get(
             `device.${deviceId}.backgroundColor`,
             '#000000'
@@ -42,6 +43,7 @@ export function initializeIpcHandlers() {
             movable,
             disablePress,
             autoHide,
+            hideEmptyKeys,
             backgroundColor,
             backgroundOpacity,
         }

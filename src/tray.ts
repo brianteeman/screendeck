@@ -109,6 +109,7 @@ function updateTrayMenu() {
                                 store.set(`device.${deviceId}.hidden`, false)
                             }
                             win.webContents.send('identify')
+                            updateTrayMenu()
                         }
                     },
                 },

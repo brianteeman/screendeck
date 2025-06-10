@@ -45,6 +45,8 @@ ScreenDeck is a virtual on-screen stream deck for Bitfocus Companion, built with
 
 1. **Download and Install**: Download the latest release here: https://github.com/josephdadams/screendeck/releases
 
+    Windows users can install using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget): `winget install josephadams.screendeck`
+
 1. **Run from Source**: Clone the repository and install dependencies using Yarn:
 
     ```bash

@@ -86,6 +86,12 @@ jobs:
             - name: Build App (typescript)
               run: yarn build
 
+            - name: Install fpm (native ARM64 - electron-builder's bundled fpm is x86-only)
+              run: |
+                  sudo apt-get update -y
+                  sudo apt-get install -y ruby ruby-dev rubygems build-essential
+                  sudo gem install --no-document fpm
+
             - name: Build Electron App for ARM64 (AppImage + deb)
               run: |
                   yarn run electron-builder --linux AppImage deb --arm64

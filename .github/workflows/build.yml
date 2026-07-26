@@ -95,6 +95,10 @@ jobs:
             - name: Build Electron App for ARM64 (AppImage + deb)
               run: |
                   yarn run electron-builder --linux AppImage deb --arm64
+              env:
+                  # Without this, electron-builder downloads its own bundled
+                  # 32-bit x86 fpm and fails with "Exec format error" on arm64.
+                  USE_SYSTEM_FPM: 'true'
 
             - name: Verify app.asar integrity
               run: |

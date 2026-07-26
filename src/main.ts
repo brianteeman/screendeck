@@ -5,7 +5,11 @@ import createTray from './tray' // Import the tray creation function
 
 import { initializeDeviceIds, createSatellite } from './utils' // Import utility functions
 
-import { createDeviceWindows, startEdgeRevealPolling } from './device' // Import device window creation
+import {
+    createDeviceWindows,
+    startEdgeRevealPolling,
+    startWindowHoverPolling,
+} from './device' // Import device window creation
 
 import { loadHotkeysFromStore, HotkeyBinding } from './hotkeys'
 
@@ -61,6 +65,7 @@ function init() {
     createSatellite() // Initialize the Companion Satellite client
     loadHotkeysFromStore() // Load hotkeys from the store
     startEdgeRevealPolling() // Start polling cursor position for edge-reveal devices (#10)
+    startWindowHoverPolling() // Start polling cursor position for in-window hover state
 
     startRestServer() // Start the remote-config REST server (#4)
     watchRestServerSettings()

@@ -497,3 +497,43 @@ export function startEdgeRevealPolling() {
         })
     }, EDGE_REVEAL_POLL_INTERVAL)
 }
+
+// --- Window hover tracking ---
+//
+// The renderer can't work this out on its own: most of a deck window's
+// surface is a `-webkit-app-region: drag` region, and Chromium doesn't deliver
+// mouse events over drag regions - so moving the cursor off a key and onto the
+// keypad background fires a spurious `mouseleave` on <body> even though the
+// cursor never left the window. That made dim-on-leave dim the deck, and the
+// close button disappear, while the mouse was still inside it.
+//
+// Polling the real cursor position against the window bounds (same approach as
+// edge-reveal above) gives the renderer a hover state that covers the whole
+// window, drag regions included.
+
+const WINDOW_HOVER_POLL_INTERVAL = 100 // ms between cursor checks
+
+// Last hover state pushed to each device's renderer, so the poll only sends
+// on transitions rather than every tick.
+const windowHoverStates = new Map<string, boolean>()
+
+export function startWindowHoverPolling() {
+    setInterval(() => {
+        const cursor = screen.getCursorScreenPoint()
+
+        global.deviceWindows.forEach((win, deviceId) => {
+            if (win.isDestroyed() || !win.isVisible()) {
+                // Forget the cached state so the next poll after this window
+                // comes back pushes a fresh one.
+                windowHoverStates.delete(deviceId)
+                return
+            }
+
+            const hovered = isPointInBounds(cursor, win.getBounds())
+            if (windowHoverStates.get(deviceId) === hovered) return
+
+            windowHoverStates.set(deviceId, hovered)
+            win.webContents.send('windowHover', hovered)
+        })
+    }, WINDOW_HOVER_POLL_INTERVAL)
+}

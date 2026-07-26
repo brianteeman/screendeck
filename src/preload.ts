@@ -44,6 +44,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('dimOnLeave', (event, data) => callback(event, data))
     },
 
+    // Cursor-inside-this-window state, pushed from the main process because
+    // drag regions swallow the renderer's own mouse events.
+    onWindowHover: (callback: any) => {
+        ipcRenderer.on('windowHover', (event, data) => callback(event, data))
+    },
+
     onAutoHide: (callback: any) => {
         ipcRenderer.on('autoHide', (event, data) => callback(event, data))
     },

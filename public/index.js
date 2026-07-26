@@ -139,60 +139,12 @@ window.addEventListener('DOMContentLoaded', () => {
             })
         }
 
-        if (keypad) {
-            const tracker = document.getElementById('mouseTracker')
-
-            window.addEventListener('mouseleave', () => {
-                const closeButton = document.getElementById('closeButton')
-                if (closeButton) {
-                    closeButton.style.opacity = '0'
-                    closeButton.style.pointerEvents = 'none'
-                }
-
-                console.log(
-                    'Mouse left window, hiding keypad for device:',
-                    deviceId
-                )
-                if (globalAutoHideOnLeave) {
-                    //hideTimeout = setTimeout(hideKeypad, 500) // small delay
-                }
-            })
-
-            window.addEventListener('mouseenter', () => {
-                const closeButton = document.getElementById('closeButton')
-                if (closeButton) {
-                    closeButton.style.opacity = '1'
-                    closeButton.style.pointerEvents = 'auto'
-                }
-
-                //auto hide stuff
-                /*console.log(
-                    'Mouse entered window, showing keypad for device:',
-                    deviceId
-                )
-                if (hideTimeout) {
-                    clearTimeout(hideTimeout)
-                    hideTimeout = null
-                }
-                if (globalAutoHideOnLeave) {
-                    showKeypad()
-                }*/
-            })
-
-            window.addEventListener('mousemove', (e) => {
-                const threshold = 50 // pixels
-
-                //auto hide stuff
-                /*if (
-                    e.clientX < threshold ||
-                    e.clientY < threshold ||
-                    e.clientX > window.innerWidth - threshold ||
-                    e.clientY > window.innerHeight - threshold
-                ) {
-                    showKeypad()
-                }*/
-            })
-        }
+        // Close-button visibility used to be driven from window mouseenter /
+        // mouseleave here, which misfired over the window's drag regions - it
+        // now rides the main-process hover poll alongside dim-on-leave (see the
+        // onWindowHover handler below). The parked auto-hide-on-leave work
+        // (hideKeypad/showKeypad, globalAutoHideOnLeave) should hook into that
+        // same hover state rather than DOM mouse events.
 
         const columnCount = config.columnCount || 0
         globalColumnCount = columnCount
@@ -774,6 +726,21 @@ window.addEventListener('DOMContentLoaded', () => {
         configureDimOnLeave(dimOnLeave)
     })
 
+    // Whether the cursor is inside this device's window, polled and pushed by
+    // startWindowHoverPolling() in src/device.ts. See configureDimOnLeave()
+    // for why DOM mouseenter/mouseleave can't be used for this.
+    window.electronAPI.onWindowHover((_, hovered) => {
+        const closeButton = document.getElementById('closeButton')
+        if (closeButton) {
+            closeButton.style.opacity = hovered ? '1' : '0'
+            closeButton.style.pointerEvents = hovered ? 'auto' : 'none'
+        }
+
+        if (globalDimOnLeave) {
+            document.body.classList.toggle('dimmed', !hovered)
+        }
+    })
+
     window.electronAPI.onAutoHide((_, autoHide) => {
         globalAutoHideOnLeave = autoHide
     })
@@ -1026,30 +993,20 @@ window.addEventListener('DOMContentLoaded', () => {
         activeKeys.clear()
     })
 
-    function onDimMouseLeave() {
-        console.log('Mouse left container, dimming')
-        document.body.classList.add('dimmed')
-    }
-
-    function onDimMouseEnter() {
-        console.log('Mouse entered container, undimming')
-        document.body.classList.remove('dimmed')
-    }
-
+    // Dim state is driven by the cursor poll in the main process
+    // (startWindowHoverPolling in src/device.ts), not by DOM mouseenter /
+    // mouseleave: the keypad background is a `-webkit-app-region: drag`
+    // region, and Chromium doesn't deliver mouse events over drag regions, so
+    // <body> gets a spurious mouseleave the moment the cursor slides off a key
+    // onto the surrounding background - which dimmed the deck while the mouse
+    // was still inside the window.
     function configureDimOnLeave(dimOnLeave) {
         console.log('Configuring dim on leave:', dimOnLeave)
 
-        // Remove any previously-attached listeners first so repeated calls
-        // (e.g. re-saving this setting) don't stack duplicate listeners.
-        document.body.removeEventListener('mouseleave', onDimMouseLeave)
-        document.body.removeEventListener('mouseenter', onDimMouseEnter)
-
-        if (dimOnLeave) {
-            document.body.addEventListener('mouseleave', onDimMouseLeave)
-            document.body.addEventListener('mouseenter', onDimMouseEnter)
-        } else {
+        if (!dimOnLeave) {
             document.body.classList.remove('dimmed')
         }
+        // When enabling, the next hover poll tick applies the correct state.
     }
 
     // --- Resizable window support (#13) ---

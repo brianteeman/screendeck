@@ -94,7 +94,10 @@ jobs:
 
             - name: Build Electron App for ARM64 (AppImage + deb)
               run: |
-                  yarn run electron-builder --linux AppImage deb --arm64
+                  # --publish never: on a tag push electron-builder would otherwise
+                  # try to upload to GitHub itself and fail for want of GH_TOKEN.
+                  # The artifacts are uploaded by the release step below instead.
+                  yarn run electron-builder --linux AppImage deb --arm64 --publish never
               env:
                   # Without this, electron-builder downloads its own bundled
                   # 32-bit x86 fpm and fails with "Exec format error" on arm64.
